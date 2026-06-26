@@ -19,6 +19,10 @@ Every project goes through this process. A todo list, a single-function utility,
 
 ## Checklist
 
+Before asking ANY question: read the relevant files/configs/commits first. Never spend a question on a fact you can obtain yourself (investigate-before-ask).
+
+Before you may "Propose approaches" you MUST pass a context-completeness check: explicitly list the remaining MATERIAL unknowns about intent / constraints / context. If that list is non-empty, keep asking — there is NO fixed question count (three is not a target). The bar is ZERO material unknowns before you propose.
+
 You MUST create a task for each of these items and complete them in order:
 
 1. **Explore project context** — check files, docs, recent commits
@@ -178,4 +182,12 @@ After the spec is approved, route by the `## Surfaces` count:
 - **Multi-entry (Surfaces ≥ 2):** invoke **writing-arch** to author the Interface-Placement Map (which capability lives on which entry point, the reachable path, cross-surface links). Skipping it leaves verify-arch with no referent — the documented "capability assembled onto the wrong surface" failure. THEN invoke writing-plans.
 - **Single-entry (Surfaces = 1):** invoke writing-plans directly.
 
-This is not an amendment or an optional add-on — it is the primary post-spec routing. The DOT graph and the imperatives above all reflect it.
+This is the primary post-spec routing. The DOT graph and the imperatives above all reflect it.
+
+## Visual mock after spec (whenever the spec has a Capability Registry)
+
+After the spec is approved and BEFORE handing off to writing-arch / writing-plans, produce a NON-INTERACTIVE visual mock so the user can SEE the rough shape — but ONLY when the spec has UI surfaces (skip for pure CLI/API/library specs, where a clickable mock is meaningless):
+
+1. Generate: `py -3 ~/.claude/lib/mock_visual.py <spec.md> <outdir>/site --title "<project> (spec mock)"` (reads the Capability Registry; one clickable page per UI entry point).
+2. Serve: `bash ~/.claude/lib/serve-tunnel.sh <outdir>/site` — it prints PUBLIC_URL.
+3. Give the user the PUBLIC_URL; say it is NON-INTERACTIVE (just the look/layout) — click through the surfaces.

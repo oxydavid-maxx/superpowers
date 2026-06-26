@@ -157,20 +157,13 @@ If you find issues, fix them inline. No need to re-review — just fix and move 
 
 ## Execution Handoff
 
-After saving the plan, offer execution choice:
+After saving the plan, the executor is **deterministically selected** — do NOT ask the user to pick.
 
-**"Plan complete and saved to `docs/superpowers/plans/<filename>.md`. Two execution options:**
+The PostToolUse `executor_select` hook writes a `## Recommended executor: <X>` block into the plan on save (subagent-driven vs workflow), chosen by a committed, auditable routing function over the plan's structure. **Proceed with THAT executor.** (Override: the user may name a different executor in their prompt.)
 
-**1. Subagent-Driven (recommended)** - I dispatch a fresh subagent per task, review between tasks, fast iteration
-
-**2. Inline Execution** - Execute tasks in this session using executing-plans, batch execution with checkpoints
-
-**Which approach?"**
-
-**If Subagent-Driven chosen:**
+**If the block says `subagent-driven` (the safe adaptive default):**
 - **REQUIRED SUB-SKILL:** Use superpowers:subagent-driven-development
 - Fresh subagent per task + two-stage review
 
-**If Inline Execution chosen:**
-- **REQUIRED SUB-SKILL:** Use superpowers:executing-plans
-- Batch execution with checkpoints for review
+**If the block says `workflow` (many independent, parallelizable tasks):**
+- Hand off to the `/workflow` tool — deterministic background orchestration with native parallel fan-out and journal+resume.
