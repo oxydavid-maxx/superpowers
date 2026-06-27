@@ -33,7 +33,7 @@ You MUST create a task for each of these items and complete them in order:
 6. **Write design doc** — save to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` and commit
 7. **Spec self-review** — quick inline check for placeholders, contradictions, ambiguity, scope (see below)
 8. **User reviews written spec** — ask user to review the spec file before proceeding
-9. **Transition to implementation** — read the spec's `## Surfaces`. If ≥2 entry points (multi-entry), invoke **writing-arch** first (author the Interface-Placement Map), then writing-plans. If single-entry, writing-plans directly.
+9. **Transition to implementation** — invoke writing-plans to create the implementation plan.
 
 ## Process Flow
 
@@ -47,8 +47,6 @@ digraph brainstorming {
     "Write design doc" [shape=box];
     "Spec self-review\n(fix inline)" [shape=box];
     "User reviews spec?" [shape=diamond];
-    "Surfaces >= 2?" [shape=diamond];
-    "Invoke writing-arch skill" [shape=doublecircle];
     "Invoke writing-plans skill" [shape=doublecircle];
 
     "Explore project context" -> "Ask clarifying questions";
@@ -60,14 +58,11 @@ digraph brainstorming {
     "Write design doc" -> "Spec self-review\n(fix inline)";
     "Spec self-review\n(fix inline)" -> "User reviews spec?";
     "User reviews spec?" -> "Write design doc" [label="changes requested"];
-    "User reviews spec?" -> "Surfaces >= 2?" [label="approved"];
-    "Surfaces >= 2?" -> "Invoke writing-arch skill" [label="yes (multi-entry)"];
-    "Surfaces >= 2?" -> "Invoke writing-plans skill" [label="no (single-entry)"];
-    "Invoke writing-arch skill" -> "Invoke writing-plans skill";
+    "User reviews spec?" -> "Invoke writing-plans skill" [label="approved"];
 }
 ```
 
-**The terminal state is writing-arch (multi-entry specs) or writing-plans (single-entry).** Do NOT invoke frontend-design, mcp-builder, or any other implementation skill. After brainstorming, the next skill is **writing-arch** if the spec declares ≥2 Surfaces, else **writing-plans** — see "Surface routing after spec" below.
+**The terminal state is invoking writing-plans.** Do NOT invoke frontend-design, mcp-builder, or any other implementation skill. Placement decisions (which capability lives on which surface) are locked down in the spec's Capability Registry — see "Required spec sections" below; no separate architecture skill is invoked.
 
 ## The Process
 
@@ -136,7 +131,7 @@ Wait for the user's response. If they request changes, make them and re-run the 
 
 **Implementation:**
 
-- Read the spec's `## Surfaces` section. If it lists ≥2 entry points (multi-entry), invoke the **writing-arch** skill first to author the Interface-Placement Map, THEN writing-plans. If single-entry, invoke writing-plans directly.
+- Invoke writing-plans to create the implementation plan.
 - Do NOT invoke unrelated implementation skills (frontend-design, mcp-builder, etc.).
 
 ## Key Principles
@@ -172,21 +167,12 @@ If they agree to the companion, read the detailed guide before proceeding:
 Every spec you write MUST include, as first-class sections:
 
 1. **Capability Registry** — one row per designed capability: `Cap-ID | capability (user outcome) | entry_point | entry_type (UI/CLI/API/library) | reachable_path | acceptance_example`. This is the deterministic referent the right-arm verify-arch / verify-spec check the assembled product against.
-2. **`## Surfaces`** — one row per user-reachable entry point: `- <name>: <UI|CLI|API|library> — <description>`. The COUNT of rows decides routing: ≥2 → multi-entry → writing-arch required. A capability named in prose but absent from the Registry/Surfaces is a defect (prose↔registry lint). For a redesign, declare `supersedes` so baseline reconciliation flags silently-dropped capabilities.
+2. **`## Surfaces`** — one row per user-reachable entry point: `- <name>: <UI|CLI|API|library> — <description>`. The Capability Registry's `entry_point` per Cap-ID must reference one of these Surfaces; that pairing IS the placement decision (no separate architecture phase is needed — the Registry encodes it). A capability named in prose but absent from the Registry/Surfaces is a defect (prose↔registry lint). For a redesign, declare `supersedes: <path-to-prior-spec>` so baseline reconciliation flags silently-dropped capabilities.
 3. **Prior art / alternatives considered + verdicts** — SOTA falsification: each finding gets adopt / adapt / reject + a one-line reason and a citation. Authored after intent is clear, before the spec is final.
 
-## Surface routing after spec (the architecture phase — LEFT arm of the V)
+## Visual mock after spec (whenever the spec has a Capability Registry with UI surfaces)
 
-After the spec is approved, route by the `## Surfaces` count:
-
-- **Multi-entry (Surfaces ≥ 2):** invoke **writing-arch** to author the Interface-Placement Map (which capability lives on which entry point, the reachable path, cross-surface links). Skipping it leaves verify-arch with no referent — the documented "capability assembled onto the wrong surface" failure. THEN invoke writing-plans.
-- **Single-entry (Surfaces = 1):** invoke writing-plans directly.
-
-This is the primary post-spec routing. The DOT graph and the imperatives above all reflect it.
-
-## Visual mock after spec (whenever the spec has a Capability Registry)
-
-After the spec is approved and BEFORE handing off to writing-arch / writing-plans, produce a NON-INTERACTIVE visual mock so the user can SEE the rough shape — but ONLY when the spec has UI surfaces (skip for pure CLI/API/library specs, where a clickable mock is meaningless):
+After the spec is approved and BEFORE handing off to writing-plans, produce a NON-INTERACTIVE visual mock so the user can SEE the rough shape — but ONLY when the spec has UI surfaces (skip for pure CLI/API/library specs, where a clickable mock is meaningless):
 
 1. Generate: `py -3 ~/.claude/lib/mock_visual.py <spec.md> <outdir>/site --title "<project> (spec mock)"` (reads the Capability Registry; one clickable page per UI entry point).
 2. Serve: `bash ~/.claude/lib/serve-tunnel.sh <outdir>/site` — it prints PUBLIC_URL.
