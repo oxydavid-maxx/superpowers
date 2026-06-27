@@ -23,17 +23,26 @@ Before asking ANY question: read the relevant files/configs/commits first. Never
 
 Before you may "Propose approaches" you MUST pass a context-completeness check: explicitly list the remaining MATERIAL unknowns about intent / constraints / context. If that list is non-empty, keep asking — there is NO fixed question count (three is not a target). The bar is ZERO material unknowns before you propose.
 
-You MUST create a task for each of these items and complete them in order:
+You MUST create a task for each of these items and complete them in order. The flow is a **TWO-PASS LOOP**: draft → SOTA research → refine → final. Single-pass (skip SOTA between draft and final) is forbidden — known failure mode: missing higher-level solutions that prior art already solved.
+
+**PASS 1 — discovery & draft:**
 
 1. **Explore project context** — check files, docs, recent commits
 2. **Offer the visual companion just-in-time** — NOT upfront. The first time a question would genuinely be clearer shown than described, offer it then (its own message); on approval its browser tab opens for you. If no visual question ever arises, never offer it. See the Visual Companion section below.
-3. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
+3. **Ask clarifying questions exhaustively** — one at a time. Bar is ZERO material unknowns about intent / constraints / context. Keep going until exhausted; three questions is not a target.
 4. **Propose 2-3 approaches** — with trade-offs and your recommendation
-5. **Present design** — in sections scaled to their complexity, get user approval after each section
-6. **Write design doc** — save to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` and commit
-7. **Spec self-review** — quick inline check for placeholders, contradictions, ambiguity, scope (see below)
-8. **User reviews written spec** — ask user to review the spec file before proceeding
-9. **Transition to implementation** — invoke writing-plans to create the implementation plan.
+5. **Write spec DRAFT** — to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` (clearly labelled "Status: DRAFT"). Include the Required spec sections (Capability Registry, ## Surfaces, placeholder Prior-art section).
+6. **Visual mock v1** — for UI specs, produce the non-interactive mock (see "Visual mock after spec" section) so the user can review the rough shape before SOTA might reshape it.
+
+**PASS 2 — SOTA falsification & refine (mandatory; do NOT collapse into pass 1):**
+
+7. **SOTA research** — for each significant approach/abstraction in the draft, WebSearch for prior art, named methods, and SOTA techniques. Per finding, write a verdict: adopt / adapt / reject + one-line reason + citation. Surface to the user any finding that genuinely reshapes the design (don't just append a section — bring it back to the conversation).
+8. **Second-pass brainstorming with the user** — fold SOTA findings back into the conversation. Ask exhaustively again until ZERO material unknowns about the revised direction (skipping this step is the known forgetting failure mode — SOTA must inform design, not decorate it).
+9. **Spec FINAL** — update the spec to "Status: FINAL"; populate the Prior-art / SOTA + verdicts section with the research results.
+10. **Visual mock v2** — for UI specs, regenerate the mock if the design materially changed in pass 2.
+11. **Spec self-review** — quick inline check for placeholders, contradictions, ambiguity, scope (see below)
+12. **User reviews written spec** — ask user to review the spec file before proceeding
+13. **Transition to implementation** — invoke writing-plans to create the implementation plan.
 
 ## Process Flow
 
