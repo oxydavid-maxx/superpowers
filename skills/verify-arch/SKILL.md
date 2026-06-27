@@ -9,10 +9,12 @@ description: Use AFTER build, BEFORE collapsing a multi-entry-point project as "
 Multi-entry-point projects only (the spec's `## Surfaces` has ≥2 rows). Run AFTER `subagent-driven-development` finishes the build, BEFORE collapsing the project as done. For single-entry projects, skip — there's no cross-surface integration to verify; go straight to `verify-spec`.
 
 ## What you check vs what verify-spec checks
+Both skills read from the SAME source — the spec's Capability Registry — but DIFFERENT columns:
+
 | | This skill (SWE.5) | verify-spec (SWE.6) |
 |---|---|---|
-| Referent | Interface-Placement Map (architecture) | Capability Registry acceptance examples (requirements) |
-| Question | "Is the capability **wired into the declared entry point**, reachable?" | "Does the capability **deliver the user outcome**?" |
+| Reads | Registry `entry_point` + `reachable_path` (placement columns) | Registry `acceptance_example` (behavior column) |
+| Question | "Is the capability **AT the declared entry point**, reachable via the declared path?" | "Does the capability **deliver the user outcome**?" |
 | Test cost | Cheap — presence/reachability check; no full user flow needed | Full — drive the entire acceptance example |
 | Catches | MISPLACED, MISSING, unreachable | wrong behavior, partial behavior |
 | Example | "Is `#curator-panel` present on `reading.html`?" | "Ask 'X?' → does a card appear in the panel?" |
@@ -21,10 +23,10 @@ Both fire in a complete pipeline. SWE.5 first (cheap, catches placement bugs ear
 
 ## Independence (load-bearing — do NOT break)
 You are given ONLY:
-- the Interface-Placement Map (see `registry-schema.md` for shape), and
+- the spec's Capability Registry (specifically the `entry_point` + `reachable_path` columns per Cap-ID), and
 - the running product's entry (URL / CLI binary / base endpoint / import path).
 
-You are **FORBIDDEN to read the build plan or the implementation source**. Derive every check from the map alone. This is the V-model's right-arm independence (builder ≠ verifier).
+You are **FORBIDDEN to read the build plan, the implementation source, or the Registry's acceptance_example column**. Derive every check from placement columns alone — acceptance behavior is verify-spec's job. This is the V-model's right-arm independence (builder ≠ verifier).
 
 ## How to check each Cap-ID
 Look up the row in the map; drive accordingly. Look up — do NOT guess.

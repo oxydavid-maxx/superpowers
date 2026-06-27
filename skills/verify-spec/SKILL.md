@@ -11,7 +11,7 @@ Every project, after build. For multi-entry projects, run AFTER `verify-arch` (l
 ## What you check vs what verify-arch checks
 | | verify-arch (SWE.5) | This skill (SWE.6) |
 |---|---|---|
-| Referent | Interface-Placement Map (architecture) | Capability Registry **acceptance_example** (requirements) |
+| Reads | Registry `entry_point` + `reachable_path` (placement) | Registry `acceptance_example` (behavior) |
 | Question | "Is it WIRED to the right surface?" | "Does it DELIVER the user outcome?" |
 | Cost | Cheap (presence/reachability) | Full (drive the entire acceptance example) |
 
