@@ -35,8 +35,11 @@ You are given ONLY:
 
 You are **FORBIDDEN to read the build plan or implementation source**. Derive every check from the acceptance_example alone. Right-arm independence (builder ≠ verifier).
 
+## Acceptance examples are structured (BDD / Specification by Example)
+Each `acceptance_example` is authored as **given / when / then** — given a state, when an input, then an observable output. Plain language is fine, but all three parts must be present and concrete; a vague example ("works correctly") is a spec defect, not something you can drive. You COMPILE the given/when/then into a runnable driver (Playwright / shell / http) at verify time — you do not invent what to test, you execute the pre-authored example.
+
 ## How to check each Cap-ID
-Drive the running product as a real user would, perform the `acceptance_example`'s input, assert the example's observable output.
+Drive the running product as a real user would, perform the `acceptance_example`'s `when` input, assert the `then` observable output.
 
 | entry_type | Driver | Usability rubric (if UI) |
 |---|---|---|
@@ -49,10 +52,12 @@ Drive the running product as a real user would, perform the `acceptance_example`
 - **MATCHES** — performed the example, observed the declared output. UI usability bar (via skill-ui-human) also met.
 - **PARTIAL** — example partially satisfied (e.g., card appears but link is wrong).
 - **MISSING** — example cannot be performed (the user-visible behavior is absent).
-- **BLOCKED** — harness/auth blocked the run; route to a human.
+- **BLOCKED** — harness/auth/tool unavailable; you could NOT perform the example. Route to a human.
+
+**Fail-closed (load-bearing — never degrade):** if the driver/tool you need is unavailable (browser won't start, no auth, harness missing), the verdict is **BLOCKED**, never MATCHES. "HTTP 200" / "the file exists" / "the test compiled" is NOT evidence the user outcome was delivered. A tool you can't run means the capability is **unverified = not done**, routed to a human — it is never silently downgraded to a pass. (This is the 478-green-tests-broken-UI failure mode.)
 
 (verify-spec does NOT emit MISPLACED — placement is verify-arch's domain. If the capability is on the wrong surface, verify-arch already flagged it.)
 
-**Required evidence per verdict:** `{cap_id, verdict, input_performed, observed, evidence_path, evidence_ts}`. A verdict with no observed-output assertion is itself a defect.
+**Required evidence per verdict:** `{cap_id, verdict, given, when_performed, then_expected, observed, evidence_path, evidence_ts}`. A verdict with no observed-output assertion is itself a defect.
 
-Write all verdicts to `verdicts.json` (`{"results": [...]}`), consumed by `~/.claude/lib/verify_coverage.py`.
+Write all verdicts to `verdicts.json` as `{"head_sha": "<git HEAD at verify time>", "results": [...]}`, consumed by `~/.claude/lib/verify_coverage.py`. The `head_sha` binds the verdicts to the exact commit verified — `R-PIPE-VERIFY-FINISH` treats verdicts whose `head_sha` ≠ current HEAD as stale (you must re-verify after any further commit).

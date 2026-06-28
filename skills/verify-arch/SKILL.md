@@ -46,8 +46,12 @@ Look up the row in the map; drive accordingly. Look up — do NOT guess.
 - **PARTIAL** — present and reachable, only partly satisfies the marker.
 - **MISSING** — not performable anywhere.
 - **MISPLACED** — performable, but NOT on the declared entry point / not via the declared path (wrong surface, or only via a buried route).
-- **BLOCKED** — harness/auth blocked reaching it (≠ MISSING); route to a human.
+- **BLOCKED** — harness/auth/tool unavailable; you could NOT drive the path (≠ MISSING). Route to a human.
+
+**Reachability is RUNTIME, not static (load-bearing):** prove the capability reaches the user by ACTUALLY driving the declared entry point via the declared path (real browser navigation, real CLI run, real request) — never by static inference or "the route is defined in the code". A page that returns 200 but is linked from nowhere is **MISPLACED**, not MATCHES: it is unreachable by a real user even though it "exists". (This is the `/task/{id} returns 200 but the homepage never links to it` failure mode.)
+
+**Fail-closed:** tool unavailable → BLOCKED, never MATCHES. Unverified = not done, routed to a human; never silently downgraded to a pass.
 
 **Required evidence per verdict:** `{cap_id, verdict, route_taken, assertion, evidence_path, evidence_ts}`. A verdict with no observed-output assertion is itself a defect (verify-lint).
 
-Write all verdicts to `verdicts.json` (`{"results": [...]}`), consumed by `~/.claude/lib/verify_coverage.py` (set-difference → completion gate).
+Write all verdicts to `verdicts.json` as `{"head_sha": "<git HEAD at verify time>", "results": [...]}`, consumed by `~/.claude/lib/verify_coverage.py` (set-difference → completion gate). `head_sha` binds verdicts to the verified commit; `R-PIPE-VERIFY-FINISH` rejects verdicts whose `head_sha` ≠ current HEAD as stale.
