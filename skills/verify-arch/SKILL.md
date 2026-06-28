@@ -48,7 +48,7 @@ Look up the row in the map; drive accordingly. Look up — do NOT guess.
 - **MISPLACED** — performable, but NOT on the declared entry point / not via the declared path (wrong surface, or only via a buried route).
 - **BLOCKED** — harness/auth/tool unavailable; you could NOT drive the path (≠ MISSING). Route to a human.
 
-**Reachability is RUNTIME, not static (load-bearing):** prove the capability reaches the user by ACTUALLY driving the declared entry point via the declared path (real browser navigation, real CLI run, real request) — never by static inference or "the route is defined in the code". A page that returns 200 but is linked from nowhere is **MISPLACED**, not MATCHES: it is unreachable by a real user even though it "exists". (This is the `/task/{id} returns 200 but the homepage never links to it` failure mode.)
+**Reachability is RUNTIME, not static (load-bearing):** prove the capability reaches the user by ACTUALLY driving the declared entry point via the declared path (real browser navigation, real CLI run, real request) — never by static inference or "the route is defined in the code". A page that returns 200 but is linked from nowhere is **MISPLACED**, not MATCHES: it is unreachable by a real user even though it "exists". (This is the `/task/{id} returns 200 but the homepage never links to it` failure mode.) Drive the **deployed user-facing surface** (the real URL when deployed), exercising a real user journey — not a localhost reachability ping: a local route can pass while the deployed CDN/cache serves a broken asset.
 
 **Fail-closed:** tool unavailable → BLOCKED, never MATCHES. Unverified = not done, routed to a human; never silently downgraded to a pass.
 
