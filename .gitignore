@@ -11,3 +11,7 @@ triage/
 # development (see CLAUDE.md / README.md). It is not part of the published
 # plugin, so the whole directory is ignored here.
 evals/
+
+# Python bytecode cache (e.g. created by running lib/runtime/tests). Never tracked or shipped.
+__pycache__/
+*.pyc
