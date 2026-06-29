@@ -179,6 +179,43 @@ Every spec you write MUST include, as first-class sections:
 2. **`## Surfaces`** — one row per user-reachable entry point: `- <name>: <UI|CLI|API|library> — <description>`. The Capability Registry's `entry_point` per Cap-ID must reference one of these Surfaces; that pairing IS the placement decision (no separate architecture phase is needed — the Registry encodes it). A capability named in prose but absent from the Registry/Surfaces is a defect (prose↔registry lint). For a redesign, declare `supersedes: <path-to-prior-spec>` so baseline reconciliation flags silently-dropped capabilities.
 3. **Prior art / alternatives considered + verdicts** — SOTA falsification: each finding gets adopt / adapt / reject + a one-line reason and a citation. Authored after intent is clear, before the spec is final.
 
+When you build the Capability Registry (section 1 above), author it with the **capability discovery + scaffold** step below so it passes `spec_quality_audit` by construction.
+
+## Capability discovery + scaffold (author the registry to pass spec_quality_audit by construction)
+
+The Capability Registry above is the DETECT referent; this is the GENERATE half — it asks the author the right questions up front and scaffolds the registry fields, so the emitted registry passes `spec_quality_audit` by construction instead of getting bounced later. It **ASKS for human intent and MUST NOT invent answers** — empty slots are filled by the author, never guessed. Run it BEFORE finalising the Capability Registry, in two ordered sub-steps.
+
+**1. Discover — find capabilities before scaffolding them.** Use the `capability_discovery` library so a capability is not silently missed:
+
+```
+py -3 -c "import os,sys; sys.path.insert(0, os.path.expanduser('~/.claude/lib')); import spec_capability_discovery as d; print(chr(10).join(q['dimension']+': '+q['question'] for q in d.discovery_questions()))"
+```
+(Runs in PowerShell — the primary shell here — and in Bash: only single-quotes appear inside the double-quoted `-c` argument, so neither shell mis-parses it.)
+
+Ask the author each question (dimensions: surface, user_role, data_mutation, lifecycle, failure, deployment). For every candidate capability record an accept/reject DECISION — a rejected candidate MUST carry a `reason` (a dropped capability stays visible). Then build and write the durable record **next to the spec** as `capability-discovery.json`:
+
+```
+from spec_capability_discovery import build_discovery_record, unlinked_accepted
+rec = build_discovery_record(
+    answers=[...],
+    decisions=[{"cap_id": "CAP-01", "accepted": True},
+               {"cap_id": "CAP-02", "accepted": False, "reason": "out of scope for v1"}],
+    registry_links=[{"cap_id": "CAP-01", "registry_entry": "CAP-01"}])
+# json.dump(rec, open(".../capability-discovery.json","w"))   # auditable artifact, NOT chat memory
+# unlinked_accepted(rec) must be empty once the registry block is emitted (every accepted cap traced)
+```
+
+**2. Scaffold — fill the registry by construction.** Once accepted capabilities + their `type_tags` are identified, call `scaffold(capabilities)`:
+
+```
+from spec_scaffold import scaffold
+registry_json, prompt_sheet = scaffold([{"cap_id": "CAP-01", "type_tags": ["editable", "persists"]}])
+```
+
+Present BOTH to the author: the VALID `registry.json` skeleton (required fields present-but-empty) AND the separate Markdown prompt sheet (a question per empty slot + the content-quality prompts for observable-oracle / surface / tag↔prose). The author fills every slot — you ASK, you do not invent — and you emit the filled registry as the spec's ` ```registry ` block. Because the scaffold and the audit share ONE source (`spec_required_fields`), a fully-filled registry passes the deterministic PRESENCE audit by construction (content-quality + high-risk independent review still apply).
+
+**Worked example — one cap, `type_tags: [editable, persists]`.** `scaffold([{"cap_id": "CAP-01", "type_tags": ["editable", "persists"]}])` emits a registry entry whose `state_data_contract` has empty `reload` and `invariant` slots, and a prompt sheet asking *"How does the user confirm the change survived (reload)? What must stay unchanged (invariant)?"*. The author fills them — e.g. `reload: "reopen the note shows the edit"`, `invariant: "other fields and frontmatter untouched"` — plus the baseline slots (entry_point/entry_type/reachable_path, acceptance given/when/then, ≥1 failure_mode). The resulting registry block then satisfies the deterministic STRUCTURAL/PRESENCE checks of `spec_quality_audit` by construction. It does NOT by itself guarantee the CONTENT-quality judgements — A2 (the `then` is an observable outcome, not a proxy), A8 (the outcome matches the declared surface), A9 (high-risk prose carries the matching tag) — nor high-risk independent review; those remain residual checks the author must still satisfy. Scaffold guarantees the slots are present, not that what fills them is good.
+
 ## Visual mock after spec (whenever the spec has a Capability Registry with UI surfaces)
 
 After the spec is approved and BEFORE handing off to writing-plans, produce a NON-INTERACTIVE visual mock so the user can SEE the rough shape — but ONLY when the spec has UI surfaces (skip for pure CLI/API/library specs, where a clickable mock is meaningless):
