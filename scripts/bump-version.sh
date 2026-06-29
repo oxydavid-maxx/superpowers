@@ -19,36 +19,69 @@ if [[ ! -f "$CONFIG" ]]; then
   exit 1
 fi
 
-# --- helpers ---
+# --- helpers (jq-free: jq is not guaranteed on every release host, e.g. Windows/Git-Bash;
+#     Python is. Resolve an interpreter once and use it for all JSON read/write/list.) ---
 
-# Read a dotted field path from a JSON file.
-# Handles both simple ("version") and nested ("plugins.0.version") paths.
+if command -v py >/dev/null 2>&1; then PYBIN=(py -3)
+elif command -v python3 >/dev/null 2>&1; then PYBIN=(python3)
+elif command -v python >/dev/null 2>&1; then PYBIN=(python)
+else echo "error: need python (py -3 / python3 / python) for jq-free JSON handling" >&2; exit 1; fi
+
+# NOTE: on Windows, py -3 stdout is text-mode and would emit CRLF, which bash `read`/`$(...)`
+# would capture as a trailing \r (e.g. key "version\r"). Every print-emitting helper forces
+# LF via sys.stdout.reconfigure(newline="\n"). The writer reads with newline="" so it never
+# rewrites the file's existing line endings (minimal diff).
+
+# Read a dotted field path ("version" or nested "plugins.0.version") from a JSON file.
 read_json_field() {
-  local file="$1" field="$2"
-  # Convert dot-path to jq path: "plugins.0.version" -> .plugins[0].version
-  local jq_path
-  jq_path=$(echo "$field" | sed -E 's/\.([0-9]+)/[\1]/g' | sed 's/^/./' | sed 's/\.\././g')
-  jq -r "$jq_path" "$file"
+  "${PYBIN[@]}" - "$1" "$2" <<'PY'
+import json, sys
+sys.stdout.reconfigure(newline="\n")
+cur = json.load(open(sys.argv[1], encoding="utf-8"))
+for seg in sys.argv[2].split("."):
+    cur = cur[int(seg)] if seg.isdigit() else cur[seg]
+print(cur)
+PY
 }
 
-# Write a dotted field path in a JSON file, preserving formatting.
+# Write a dotted field path, MINIMAL-DIFF: structural read of the old value, then a single
+# targeted textual replace (preserves all formatting AND line endings; no reserialize).
 write_json_field() {
-  local file="$1" field="$2" value="$3"
-  local jq_path
-  jq_path=$(echo "$field" | sed -E 's/\.([0-9]+)/[\1]/g' | sed 's/^/./' | sed 's/\.\././g')
-  local tmp="${file}.tmp"
-  jq "$jq_path = \"$value\"" "$file" > "$tmp" && mv "$tmp" "$file"
+  "${PYBIN[@]}" - "$1" "$2" "$3" <<'PY'
+import json, re, sys
+f, field, new = sys.argv[1], sys.argv[2], sys.argv[3]
+cur = json.load(open(f, encoding="utf-8"))
+for seg in field.split(".")[:-1]:
+    cur = cur[int(seg)] if seg.isdigit() else cur[seg]
+leaf = field.split(".")[-1]
+old = cur[int(leaf)] if leaf.isdigit() else cur[leaf]
+text = open(f, encoding="utf-8", newline="").read()  # newline="" => preserve CRLF/LF as-is
+pat = re.compile(r'("%s"\s*:\s*")%s(")' % (re.escape(leaf), re.escape(str(old))))
+new_text, n = pat.subn(lambda m: m.group(1) + new + m.group(2), text, count=1)
+if n != 1:
+    sys.exit("error: could not uniquely locate %s=%r in %s" % (field, old, f))
+open(f, "w", encoding="utf-8", newline="").write(new_text)
+PY
 }
 
-# Read the list of declared files from config.
-# Outputs lines of "path<TAB>field"
+# Declared files as "path<TAB>field" lines (from the authoritative .version-bump.json).
 declared_files() {
-  jq -r '.files[] | "\(.path)\t\(.field)"' "$CONFIG"
+  "${PYBIN[@]}" - "$CONFIG" <<'PY'
+import json, sys
+sys.stdout.reconfigure(newline="\n")
+for e in json.load(open(sys.argv[1], encoding="utf-8"))["files"]:
+    print("%s\t%s" % (e["path"], e["field"]))
+PY
 }
 
-# Read the audit exclude patterns from config.
+# Audit exclude patterns.
 audit_excludes() {
-  jq -r '.audit.exclude[]' "$CONFIG" 2>/dev/null
+  "${PYBIN[@]}" - "$CONFIG" <<'PY'
+import json, sys
+sys.stdout.reconfigure(newline="\n")
+for p in json.load(open(sys.argv[1], encoding="utf-8")).get("audit", {}).get("exclude", []):
+    print(p)
+PY
 }
 
 # --- commands ---
@@ -74,6 +107,12 @@ cmd_check() {
   done < <(declared_files)
 
   echo ""
+
+  # Guard: empty array under `set -u` would trip "unbound variable" on "${versions[@]}".
+  if [[ ${#versions[@]} -eq 0 ]]; then
+    echo "error: no declared version targets found in $CONFIG" >&2
+    return 1
+  fi
 
   # Check if all versions match
   local unique
