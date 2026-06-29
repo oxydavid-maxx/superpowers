@@ -6,7 +6,7 @@
     "name": "Jesse Vincent",
     "email": "jesse@fsck.com"
   },
-  "homepage": "https://github.com/obra/superpowers",
+  "homepage": "https://github.com/oxydavid-maxx/superpowers",
   "license": "MIT",
   "keywords": [
     "brainstorming",
@@ -33,6 +33,6 @@
       "Read",
       "Write"
     ],
-    "websiteURL": "https://github.com/obra/superpowers"
+    "websiteURL": "https://github.com/oxydavid-maxx/superpowers"
   }
 }
