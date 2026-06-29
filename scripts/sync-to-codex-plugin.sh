@@ -74,7 +74,7 @@ EXCLUDES=(
   "/commands/"
   "/docs/"
   "/evals/"
-  "/lib/"
+  "/lib/**"
   "/scripts/"
   "/tests/"
   "/tmp/"
@@ -318,6 +318,12 @@ fi
 # =============================================================================
 
 RSYNC_ARGS=(-av --delete --delete-excluded)
+# RT-F1: ship the bundled V-model runtime (lib/runtime) to the Codex plugin, but NOT the rest
+# of /lib/. These include rules MUST precede the "/lib/**" exclude (rsync = first match wins).
+# The __pycache__/*.pyc guards are belt-and-suspenders; the sync source is tracked-only.
+RSYNC_ARGS+=(--include="/lib/")
+RSYNC_ARGS+=(--exclude="/lib/runtime/**/__pycache__/" --exclude="/lib/runtime/**/*.pyc")
+RSYNC_ARGS+=(--include="/lib/runtime/***")
 for pat in "${EXCLUDES[@]}"; do RSYNC_ARGS+=(--exclude="$pat"); done
 append_git_ignored_directory_excludes
 append_git_ignored_file_excludes
