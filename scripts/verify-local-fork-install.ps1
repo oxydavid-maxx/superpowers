@@ -99,7 +99,7 @@ if (Test-Path -LiteralPath $codexOfficial) {
   Add-Error "Codex official Superpowers cache exists: $codexOfficial"
 }
 
-$codexCache = Join-Path $CodexHome "plugins\cache\superpowers-dev\superpowers\6.0.3"
+$codexCache = Join-Path $CodexHome "plugins\cache\superpowers-dev\superpowers\$ExpectedVersion"
 if (-not (Test-Path -LiteralPath $codexCache)) {
   Add-Error "Codex fork cache missing: $codexCache"
 } else {
