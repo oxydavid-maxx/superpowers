@@ -48,10 +48,19 @@ aggregation/calibration step of this loop. Its added responsibilities:
    house-cleaning inbox for the user to authorize (T2 operating tier: edits to enforcement
    machinery are human-gated). Honors the IRON RULE: auto-fix requires a verified root cause.
 
-NOTE / out-of-repo seam: the house-cleaning routine itself lives in `~/.claude` (outside this
-plugin repo and outside this job's allowed paths). This section is the CONTRACT it must
-implement; wiring the aggregation step into the `~/.claude` weekly routine is a separate
-`~/.claude`-repo change (the runtime modules it needs are shipped here and synced to `~/.claude/lib`).
+WIRED (not a future seam) — review-fix round:
+- `~/.claude/hooks/house_cleaning/audit_verification_feedback.py` (`run(ctx)`) reads the global
+  sink and emits unresolved-P0-P3 findings, and is REGISTERED in
+  `~/.claude/hooks/house_cleaning/report.py:run_and_collect` (the "Verification Gap Feedback"
+  section), so the existing weekly routine runs it — no new scheduler. Test:
+  `~/.claude/hooks/house_cleaning/tests/test_audit_verification_feedback.py`.
+- The signoff CONSUMER is real: `~/.claude/hooks/pretooluse-verify-finish-gate.py:decide()` now
+  loads `<repo>/.superpowers/verify/feedback-events.jsonl` and DENIES 收尾 when
+  `verification_feedback.blocks_signoff(...)` is non-empty (unresolved P0-P3 → blocked is not
+  done). Tests: `~/.claude/lib/tests/test_verify_finish_gate.py::test_finish_blocked_by_unresolved_feedback_gap`
+  / `::test_finish_allowed_when_feedback_resolved`.
+- `verification_feedback.py` is shipped in this plugin's `lib/runtime/payload` AND present in
+  `~/.claude/lib` so the gate + house-cleaning import it (SessionStart sync keeps them in step).
 
 ## Release (outcome 8)
 
