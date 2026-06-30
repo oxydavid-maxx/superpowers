@@ -1,0 +1,865 @@
+{
+  "schema_version": 1,
+  "spec_path": "docs/superpowers/specs/2026-06-30-superpower-entry-runtime-reliability-design.md",
+  "mock_artifacts": [
+    "docs/superpowers/mocks/2026-06-30-superpower-entry-runtime-reliability/mock-v1-stage-order.md"
+  ],
+  "independent": true,
+  "verifier": "current session",
+  "builder": "Claude Code S4_BUILD executor",
+  "builder_boundary": "External builder may only own S4_BUILD after S3 implementation plan; it may not edit spec, verification plan, verifier, release, or push authority files.",
+  "skill_ui_human_available": true,
+  "verify_arch": {
+    "required": true,
+    "reason": "Spec declares multiple surfaces: superpower-skill-entry, install-runtime, verification-runtime."
+  },
+  "verify_spec": {
+    "required": true
+  },
+  "registry": [
+    {
+      "cap_id": "SPR-ENTRY-01",
+      "entry_point": "superpower-skill-entry",
+      "entry_type": "process",
+      "risk": {
+        "entry_type": "process",
+        "tags": [
+          "process"
+        ],
+        "multi_component": true,
+        "silent": true,
+        "inputs": 3
+      }
+    },
+    {
+      "cap_id": "SPR-ENTRY-02",
+      "entry_point": "superpower-skill-entry",
+      "entry_type": "process",
+      "risk": {
+        "entry_type": "process",
+        "tags": [
+          "process"
+        ],
+        "multi_component": true,
+        "silent": true,
+        "inputs": 3
+      }
+    },
+    {
+      "cap_id": "SPR-SKILLMAP-03",
+      "entry_point": "superpower-skill-entry",
+      "entry_type": "process",
+      "risk": {
+        "entry_type": "process",
+        "tags": [
+          "process"
+        ],
+        "multi_component": true,
+        "silent": true,
+        "inputs": 3
+      }
+    },
+    {
+      "cap_id": "SPR-CURRENT-04",
+      "entry_point": "install-runtime",
+      "entry_type": "CLI",
+      "risk": {
+        "entry_type": "CLI",
+        "tags": [
+          "cli"
+        ],
+        "multi_component": true,
+        "silent": true,
+        "inputs": 3
+      }
+    },
+    {
+      "cap_id": "SPR-NOHARDPIN-05",
+      "entry_point": "install-runtime",
+      "entry_type": "CLI",
+      "risk": {
+        "entry_type": "CLI",
+        "tags": [
+          "cli"
+        ],
+        "multi_component": true,
+        "silent": true,
+        "inputs": 3
+      }
+    },
+    {
+      "cap_id": "SPR-BUILD-06",
+      "entry_point": "superpower-skill-entry",
+      "entry_type": "process",
+      "risk": {
+        "entry_type": "process",
+        "tags": [
+          "process"
+        ],
+        "multi_component": true,
+        "silent": true,
+        "inputs": 3
+      }
+    },
+    {
+      "cap_id": "SPR-FEEDBACK-07",
+      "entry_point": "verification-runtime",
+      "entry_type": "CLI",
+      "risk": {
+        "entry_type": "CLI",
+        "tags": [
+          "cli"
+        ],
+        "multi_component": true,
+        "silent": true,
+        "inputs": 3
+      }
+    },
+    {
+      "cap_id": "SPR-FINISH-08",
+      "entry_point": "verification-runtime",
+      "entry_type": "CLI",
+      "risk": {
+        "entry_type": "CLI",
+        "tags": [
+          "cli"
+        ],
+        "multi_component": true,
+        "silent": true,
+        "inputs": 3
+      }
+    }
+  ],
+  "capabilities": [
+    {
+      "cap_id": "SPR-ENTRY-01",
+      "acceptance": {
+        "then": "entry recap names S0 through S6, maps stages to skills, states current state/action, and uses natural language rather than boilerplate"
+      },
+      "techniques": [
+        "BVA",
+        "decision-table",
+        "error-guessing",
+        "pairwise",
+        "use-case"
+      ]
+    },
+    {
+      "cap_id": "SPR-ENTRY-02",
+      "acceptance": {
+        "then": "entry behavior keeps the session in S0_DISCUSS until material unknowns are resolved"
+      },
+      "techniques": [
+        "BVA",
+        "decision-table",
+        "error-guessing",
+        "pairwise",
+        "use-case"
+      ]
+    },
+    {
+      "cap_id": "SPR-SKILLMAP-03",
+      "acceptance": {
+        "then": "each stage in the entry recap carries a named skill mapping or explicit conditional skill"
+      },
+      "techniques": [
+        "BVA",
+        "decision-table",
+        "error-guessing",
+        "pairwise",
+        "use-case"
+      ]
+    },
+    {
+      "cap_id": "SPR-CURRENT-04",
+      "acceptance": {
+        "then": "Claude and Codex active installs resolve through stable current pointers after pinning"
+      },
+      "techniques": [
+        "BVA",
+        "decision-table",
+        "error-guessing",
+        "pairwise",
+        "use-case"
+      ]
+    },
+    {
+      "cap_id": "SPR-NOHARDPIN-05",
+      "acceptance": {
+        "then": "active registries fail verification when Superpower entries hard-pin versioned cache paths"
+      },
+      "techniques": [
+        "BVA",
+        "decision-table",
+        "error-guessing",
+        "pairwise",
+        "use-case"
+      ]
+    },
+    {
+      "cap_id": "SPR-BUILD-06",
+      "acceptance": {
+        "then": "only S4_BUILD executor may become external after explicit confirmation"
+      },
+      "techniques": [
+        "BVA",
+        "decision-table",
+        "error-guessing",
+        "pairwise",
+        "use-case"
+      ]
+    },
+    {
+      "cap_id": "SPR-FEEDBACK-07",
+      "acceptance": {
+        "then": "verification misses are recorded as structured checklist or archetype feedback and unresolved P2/P3 blocks signoff"
+      },
+      "techniques": [
+        "BVA",
+        "decision-table",
+        "error-guessing",
+        "pairwise",
+        "use-case"
+      ]
+    },
+    {
+      "cap_id": "SPR-FINISH-08",
+      "acceptance": {
+        "then": "completion claims require gate evidence and missing evidence forces blocked or partial wording"
+      },
+      "techniques": [
+        "BVA",
+        "decision-table",
+        "error-guessing",
+        "pairwise",
+        "use-case"
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "SPR-ENTRY-01-happy",
+      "cap_id": "SPR-ENTRY-01",
+      "entry_point": "superpower-skill-entry",
+      "entry_type": "process",
+      "category": "happy",
+      "technique": "use-case",
+      "given": "SPR-ENTRY-01 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the happy condition for superpower-skill-entry",
+      "then": "the nominal approved Superpower path reaches the declared outcome: entry recap names S0 through S6, maps stages to skills, states current state/action, and uses natural language rather than boilerplate",
+      "executor": "skill-pressure-scenario",
+      "evidence_policy": "manual_live_qa"
+    },
+    {
+      "case_id": "SPR-ENTRY-01-boundary",
+      "cap_id": "SPR-ENTRY-01",
+      "entry_point": "superpower-skill-entry",
+      "entry_type": "process",
+      "category": "boundary",
+      "technique": "BVA",
+      "given": "SPR-ENTRY-01 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the boundary condition for superpower-skill-entry",
+      "then": "the smallest valid input and largest expected stage list still produce the declared outcome: entry recap names S0 through S6, maps stages to skills, states current state/action, and uses natural language rather than boilerplate",
+      "executor": "skill-pressure-scenario",
+      "evidence_policy": "manual_live_qa"
+    },
+    {
+      "case_id": "SPR-ENTRY-01-negative",
+      "cap_id": "SPR-ENTRY-01",
+      "entry_point": "superpower-skill-entry",
+      "entry_type": "process",
+      "category": "negative",
+      "technique": "decision-table",
+      "given": "SPR-ENTRY-01 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the negative condition for superpower-skill-entry",
+      "then": "invalid or premature action is rejected with the declared blocking behavior: entry recap names S0 through S6, maps stages to skills, states current state/action, and uses natural language rather than boilerplate",
+      "executor": "skill-pressure-scenario",
+      "evidence_policy": "manual_live_qa"
+    },
+    {
+      "case_id": "SPR-ENTRY-01-integration",
+      "cap_id": "SPR-ENTRY-01",
+      "entry_point": "superpower-skill-entry",
+      "entry_type": "process",
+      "category": "integration",
+      "technique": "use-case",
+      "given": "SPR-ENTRY-01 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the integration condition for superpower-skill-entry",
+      "then": "the declared surface and its adjacent runtime artifact cooperate to produce the declared outcome: entry recap names S0 through S6, maps stages to skills, states current state/action, and uses natural language rather than boilerplate",
+      "executor": "skill-pressure-scenario",
+      "evidence_policy": "manual_live_qa"
+    },
+    {
+      "case_id": "SPR-ENTRY-01-corner",
+      "cap_id": "SPR-ENTRY-01",
+      "entry_point": "superpower-skill-entry",
+      "entry_type": "process",
+      "category": "corner",
+      "technique": "pairwise",
+      "given": "SPR-ENTRY-01 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the corner condition for superpower-skill-entry",
+      "then": "combined edge inputs still preserve the declared outcome without weakening gates: entry recap names S0 through S6, maps stages to skills, states current state/action, and uses natural language rather than boilerplate",
+      "executor": "skill-pressure-scenario",
+      "evidence_policy": "manual_live_qa"
+    },
+    {
+      "case_id": "SPR-ENTRY-01-error-guessing",
+      "cap_id": "SPR-ENTRY-01",
+      "entry_point": "superpower-skill-entry",
+      "entry_type": "process",
+      "category": "error-guessing",
+      "technique": "error-guessing",
+      "given": "SPR-ENTRY-01 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the error-guessing condition for superpower-skill-entry",
+      "then": "a known failure pattern is actively targeted and the declared guard catches it: entry recap names S0 through S6, maps stages to skills, states current state/action, and uses natural language rather than boilerplate",
+      "executor": "skill-pressure-scenario",
+      "evidence_policy": "manual_live_qa"
+    },
+    {
+      "case_id": "SPR-ENTRY-02-happy",
+      "cap_id": "SPR-ENTRY-02",
+      "entry_point": "superpower-skill-entry",
+      "entry_type": "process",
+      "category": "happy",
+      "technique": "use-case",
+      "given": "SPR-ENTRY-02 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the happy condition for superpower-skill-entry",
+      "then": "the nominal approved Superpower path reaches the declared outcome: entry behavior keeps the session in S0_DISCUSS until material unknowns are resolved",
+      "executor": "skill-pressure-scenario",
+      "evidence_policy": "manual_live_qa"
+    },
+    {
+      "case_id": "SPR-ENTRY-02-boundary",
+      "cap_id": "SPR-ENTRY-02",
+      "entry_point": "superpower-skill-entry",
+      "entry_type": "process",
+      "category": "boundary",
+      "technique": "BVA",
+      "given": "SPR-ENTRY-02 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the boundary condition for superpower-skill-entry",
+      "then": "the smallest valid input and largest expected stage list still produce the declared outcome: entry behavior keeps the session in S0_DISCUSS until material unknowns are resolved",
+      "executor": "skill-pressure-scenario",
+      "evidence_policy": "manual_live_qa"
+    },
+    {
+      "case_id": "SPR-ENTRY-02-negative",
+      "cap_id": "SPR-ENTRY-02",
+      "entry_point": "superpower-skill-entry",
+      "entry_type": "process",
+      "category": "negative",
+      "technique": "decision-table",
+      "given": "SPR-ENTRY-02 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the negative condition for superpower-skill-entry",
+      "then": "invalid or premature action is rejected with the declared blocking behavior: entry behavior keeps the session in S0_DISCUSS until material unknowns are resolved",
+      "executor": "skill-pressure-scenario",
+      "evidence_policy": "manual_live_qa"
+    },
+    {
+      "case_id": "SPR-ENTRY-02-integration",
+      "cap_id": "SPR-ENTRY-02",
+      "entry_point": "superpower-skill-entry",
+      "entry_type": "process",
+      "category": "integration",
+      "technique": "use-case",
+      "given": "SPR-ENTRY-02 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the integration condition for superpower-skill-entry",
+      "then": "the declared surface and its adjacent runtime artifact cooperate to produce the declared outcome: entry behavior keeps the session in S0_DISCUSS until material unknowns are resolved",
+      "executor": "skill-pressure-scenario",
+      "evidence_policy": "manual_live_qa"
+    },
+    {
+      "case_id": "SPR-ENTRY-02-corner",
+      "cap_id": "SPR-ENTRY-02",
+      "entry_point": "superpower-skill-entry",
+      "entry_type": "process",
+      "category": "corner",
+      "technique": "pairwise",
+      "given": "SPR-ENTRY-02 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the corner condition for superpower-skill-entry",
+      "then": "combined edge inputs still preserve the declared outcome without weakening gates: entry behavior keeps the session in S0_DISCUSS until material unknowns are resolved",
+      "executor": "skill-pressure-scenario",
+      "evidence_policy": "manual_live_qa"
+    },
+    {
+      "case_id": "SPR-ENTRY-02-error-guessing",
+      "cap_id": "SPR-ENTRY-02",
+      "entry_point": "superpower-skill-entry",
+      "entry_type": "process",
+      "category": "error-guessing",
+      "technique": "error-guessing",
+      "given": "SPR-ENTRY-02 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the error-guessing condition for superpower-skill-entry",
+      "then": "a known failure pattern is actively targeted and the declared guard catches it: entry behavior keeps the session in S0_DISCUSS until material unknowns are resolved",
+      "executor": "skill-pressure-scenario",
+      "evidence_policy": "manual_live_qa"
+    },
+    {
+      "case_id": "SPR-SKILLMAP-03-happy",
+      "cap_id": "SPR-SKILLMAP-03",
+      "entry_point": "superpower-skill-entry",
+      "entry_type": "process",
+      "category": "happy",
+      "technique": "use-case",
+      "given": "SPR-SKILLMAP-03 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the happy condition for superpower-skill-entry",
+      "then": "the nominal approved Superpower path reaches the declared outcome: each stage in the entry recap carries a named skill mapping or explicit conditional skill",
+      "executor": "skill-pressure-scenario",
+      "evidence_policy": "manual_live_qa"
+    },
+    {
+      "case_id": "SPR-SKILLMAP-03-boundary",
+      "cap_id": "SPR-SKILLMAP-03",
+      "entry_point": "superpower-skill-entry",
+      "entry_type": "process",
+      "category": "boundary",
+      "technique": "BVA",
+      "given": "SPR-SKILLMAP-03 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the boundary condition for superpower-skill-entry",
+      "then": "the smallest valid input and largest expected stage list still produce the declared outcome: each stage in the entry recap carries a named skill mapping or explicit conditional skill",
+      "executor": "skill-pressure-scenario",
+      "evidence_policy": "manual_live_qa"
+    },
+    {
+      "case_id": "SPR-SKILLMAP-03-negative",
+      "cap_id": "SPR-SKILLMAP-03",
+      "entry_point": "superpower-skill-entry",
+      "entry_type": "process",
+      "category": "negative",
+      "technique": "decision-table",
+      "given": "SPR-SKILLMAP-03 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the negative condition for superpower-skill-entry",
+      "then": "invalid or premature action is rejected with the declared blocking behavior: each stage in the entry recap carries a named skill mapping or explicit conditional skill",
+      "executor": "skill-pressure-scenario",
+      "evidence_policy": "manual_live_qa"
+    },
+    {
+      "case_id": "SPR-SKILLMAP-03-integration",
+      "cap_id": "SPR-SKILLMAP-03",
+      "entry_point": "superpower-skill-entry",
+      "entry_type": "process",
+      "category": "integration",
+      "technique": "use-case",
+      "given": "SPR-SKILLMAP-03 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the integration condition for superpower-skill-entry",
+      "then": "the declared surface and its adjacent runtime artifact cooperate to produce the declared outcome: each stage in the entry recap carries a named skill mapping or explicit conditional skill",
+      "executor": "skill-pressure-scenario",
+      "evidence_policy": "manual_live_qa"
+    },
+    {
+      "case_id": "SPR-SKILLMAP-03-corner",
+      "cap_id": "SPR-SKILLMAP-03",
+      "entry_point": "superpower-skill-entry",
+      "entry_type": "process",
+      "category": "corner",
+      "technique": "pairwise",
+      "given": "SPR-SKILLMAP-03 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the corner condition for superpower-skill-entry",
+      "then": "combined edge inputs still preserve the declared outcome without weakening gates: each stage in the entry recap carries a named skill mapping or explicit conditional skill",
+      "executor": "skill-pressure-scenario",
+      "evidence_policy": "manual_live_qa"
+    },
+    {
+      "case_id": "SPR-SKILLMAP-03-error-guessing",
+      "cap_id": "SPR-SKILLMAP-03",
+      "entry_point": "superpower-skill-entry",
+      "entry_type": "process",
+      "category": "error-guessing",
+      "technique": "error-guessing",
+      "given": "SPR-SKILLMAP-03 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the error-guessing condition for superpower-skill-entry",
+      "then": "a known failure pattern is actively targeted and the declared guard catches it: each stage in the entry recap carries a named skill mapping or explicit conditional skill",
+      "executor": "skill-pressure-scenario",
+      "evidence_policy": "manual_live_qa"
+    },
+    {
+      "case_id": "SPR-CURRENT-04-happy",
+      "cap_id": "SPR-CURRENT-04",
+      "entry_point": "install-runtime",
+      "entry_type": "CLI",
+      "category": "happy",
+      "technique": "use-case",
+      "given": "SPR-CURRENT-04 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the happy condition for install-runtime",
+      "then": "the nominal approved Superpower path reaches the declared outcome: Claude and Codex active installs resolve through stable current pointers after pinning",
+      "executor": "pytest",
+      "evidence_policy": "automated_regression"
+    },
+    {
+      "case_id": "SPR-CURRENT-04-boundary",
+      "cap_id": "SPR-CURRENT-04",
+      "entry_point": "install-runtime",
+      "entry_type": "CLI",
+      "category": "boundary",
+      "technique": "BVA",
+      "given": "SPR-CURRENT-04 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the boundary condition for install-runtime",
+      "then": "the smallest valid input and largest expected stage list still produce the declared outcome: Claude and Codex active installs resolve through stable current pointers after pinning",
+      "executor": "pytest",
+      "evidence_policy": "automated_regression"
+    },
+    {
+      "case_id": "SPR-CURRENT-04-negative",
+      "cap_id": "SPR-CURRENT-04",
+      "entry_point": "install-runtime",
+      "entry_type": "CLI",
+      "category": "negative",
+      "technique": "decision-table",
+      "given": "SPR-CURRENT-04 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the negative condition for install-runtime",
+      "then": "invalid or premature action is rejected with the declared blocking behavior: Claude and Codex active installs resolve through stable current pointers after pinning",
+      "executor": "pytest",
+      "evidence_policy": "automated_regression"
+    },
+    {
+      "case_id": "SPR-CURRENT-04-integration",
+      "cap_id": "SPR-CURRENT-04",
+      "entry_point": "install-runtime",
+      "entry_type": "CLI",
+      "category": "integration",
+      "technique": "use-case",
+      "given": "SPR-CURRENT-04 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the integration condition for install-runtime",
+      "then": "the declared surface and its adjacent runtime artifact cooperate to produce the declared outcome: Claude and Codex active installs resolve through stable current pointers after pinning",
+      "executor": "pytest",
+      "evidence_policy": "automated_regression"
+    },
+    {
+      "case_id": "SPR-CURRENT-04-corner",
+      "cap_id": "SPR-CURRENT-04",
+      "entry_point": "install-runtime",
+      "entry_type": "CLI",
+      "category": "corner",
+      "technique": "pairwise",
+      "given": "SPR-CURRENT-04 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the corner condition for install-runtime",
+      "then": "combined edge inputs still preserve the declared outcome without weakening gates: Claude and Codex active installs resolve through stable current pointers after pinning",
+      "executor": "pytest",
+      "evidence_policy": "automated_regression"
+    },
+    {
+      "case_id": "SPR-CURRENT-04-error-guessing",
+      "cap_id": "SPR-CURRENT-04",
+      "entry_point": "install-runtime",
+      "entry_type": "CLI",
+      "category": "error-guessing",
+      "technique": "error-guessing",
+      "given": "SPR-CURRENT-04 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the error-guessing condition for install-runtime",
+      "then": "a known failure pattern is actively targeted and the declared guard catches it: Claude and Codex active installs resolve through stable current pointers after pinning",
+      "executor": "pytest",
+      "evidence_policy": "automated_regression"
+    },
+    {
+      "case_id": "SPR-NOHARDPIN-05-happy",
+      "cap_id": "SPR-NOHARDPIN-05",
+      "entry_point": "install-runtime",
+      "entry_type": "CLI",
+      "category": "happy",
+      "technique": "use-case",
+      "given": "SPR-NOHARDPIN-05 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the happy condition for install-runtime",
+      "then": "the nominal approved Superpower path reaches the declared outcome: active registries fail verification when Superpower entries hard-pin versioned cache paths",
+      "executor": "pytest",
+      "evidence_policy": "automated_regression"
+    },
+    {
+      "case_id": "SPR-NOHARDPIN-05-boundary",
+      "cap_id": "SPR-NOHARDPIN-05",
+      "entry_point": "install-runtime",
+      "entry_type": "CLI",
+      "category": "boundary",
+      "technique": "BVA",
+      "given": "SPR-NOHARDPIN-05 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the boundary condition for install-runtime",
+      "then": "the smallest valid input and largest expected stage list still produce the declared outcome: active registries fail verification when Superpower entries hard-pin versioned cache paths",
+      "executor": "pytest",
+      "evidence_policy": "automated_regression"
+    },
+    {
+      "case_id": "SPR-NOHARDPIN-05-negative",
+      "cap_id": "SPR-NOHARDPIN-05",
+      "entry_point": "install-runtime",
+      "entry_type": "CLI",
+      "category": "negative",
+      "technique": "decision-table",
+      "given": "SPR-NOHARDPIN-05 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the negative condition for install-runtime",
+      "then": "invalid or premature action is rejected with the declared blocking behavior: active registries fail verification when Superpower entries hard-pin versioned cache paths",
+      "executor": "pytest",
+      "evidence_policy": "automated_regression"
+    },
+    {
+      "case_id": "SPR-NOHARDPIN-05-integration",
+      "cap_id": "SPR-NOHARDPIN-05",
+      "entry_point": "install-runtime",
+      "entry_type": "CLI",
+      "category": "integration",
+      "technique": "use-case",
+      "given": "SPR-NOHARDPIN-05 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the integration condition for install-runtime",
+      "then": "the declared surface and its adjacent runtime artifact cooperate to produce the declared outcome: active registries fail verification when Superpower entries hard-pin versioned cache paths",
+      "executor": "pytest",
+      "evidence_policy": "automated_regression"
+    },
+    {
+      "case_id": "SPR-NOHARDPIN-05-corner",
+      "cap_id": "SPR-NOHARDPIN-05",
+      "entry_point": "install-runtime",
+      "entry_type": "CLI",
+      "category": "corner",
+      "technique": "pairwise",
+      "given": "SPR-NOHARDPIN-05 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the corner condition for install-runtime",
+      "then": "combined edge inputs still preserve the declared outcome without weakening gates: active registries fail verification when Superpower entries hard-pin versioned cache paths",
+      "executor": "pytest",
+      "evidence_policy": "automated_regression"
+    },
+    {
+      "case_id": "SPR-NOHARDPIN-05-error-guessing",
+      "cap_id": "SPR-NOHARDPIN-05",
+      "entry_point": "install-runtime",
+      "entry_type": "CLI",
+      "category": "error-guessing",
+      "technique": "error-guessing",
+      "given": "SPR-NOHARDPIN-05 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the error-guessing condition for install-runtime",
+      "then": "a known failure pattern is actively targeted and the declared guard catches it: active registries fail verification when Superpower entries hard-pin versioned cache paths",
+      "executor": "pytest",
+      "evidence_policy": "automated_regression"
+    },
+    {
+      "case_id": "SPR-BUILD-06-happy",
+      "cap_id": "SPR-BUILD-06",
+      "entry_point": "superpower-skill-entry",
+      "entry_type": "process",
+      "category": "happy",
+      "technique": "use-case",
+      "given": "SPR-BUILD-06 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the happy condition for superpower-skill-entry",
+      "then": "the nominal approved Superpower path reaches the declared outcome: only S4_BUILD executor may become external after explicit confirmation",
+      "executor": "skill-pressure-scenario",
+      "evidence_policy": "manual_live_qa"
+    },
+    {
+      "case_id": "SPR-BUILD-06-boundary",
+      "cap_id": "SPR-BUILD-06",
+      "entry_point": "superpower-skill-entry",
+      "entry_type": "process",
+      "category": "boundary",
+      "technique": "BVA",
+      "given": "SPR-BUILD-06 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the boundary condition for superpower-skill-entry",
+      "then": "the smallest valid input and largest expected stage list still produce the declared outcome: only S4_BUILD executor may become external after explicit confirmation",
+      "executor": "skill-pressure-scenario",
+      "evidence_policy": "manual_live_qa"
+    },
+    {
+      "case_id": "SPR-BUILD-06-negative",
+      "cap_id": "SPR-BUILD-06",
+      "entry_point": "superpower-skill-entry",
+      "entry_type": "process",
+      "category": "negative",
+      "technique": "decision-table",
+      "given": "SPR-BUILD-06 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the negative condition for superpower-skill-entry",
+      "then": "invalid or premature action is rejected with the declared blocking behavior: only S4_BUILD executor may become external after explicit confirmation",
+      "executor": "skill-pressure-scenario",
+      "evidence_policy": "manual_live_qa"
+    },
+    {
+      "case_id": "SPR-BUILD-06-integration",
+      "cap_id": "SPR-BUILD-06",
+      "entry_point": "superpower-skill-entry",
+      "entry_type": "process",
+      "category": "integration",
+      "technique": "use-case",
+      "given": "SPR-BUILD-06 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the integration condition for superpower-skill-entry",
+      "then": "the declared surface and its adjacent runtime artifact cooperate to produce the declared outcome: only S4_BUILD executor may become external after explicit confirmation",
+      "executor": "skill-pressure-scenario",
+      "evidence_policy": "manual_live_qa"
+    },
+    {
+      "case_id": "SPR-BUILD-06-corner",
+      "cap_id": "SPR-BUILD-06",
+      "entry_point": "superpower-skill-entry",
+      "entry_type": "process",
+      "category": "corner",
+      "technique": "pairwise",
+      "given": "SPR-BUILD-06 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the corner condition for superpower-skill-entry",
+      "then": "combined edge inputs still preserve the declared outcome without weakening gates: only S4_BUILD executor may become external after explicit confirmation",
+      "executor": "skill-pressure-scenario",
+      "evidence_policy": "manual_live_qa"
+    },
+    {
+      "case_id": "SPR-BUILD-06-error-guessing",
+      "cap_id": "SPR-BUILD-06",
+      "entry_point": "superpower-skill-entry",
+      "entry_type": "process",
+      "category": "error-guessing",
+      "technique": "error-guessing",
+      "given": "SPR-BUILD-06 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the error-guessing condition for superpower-skill-entry",
+      "then": "a known failure pattern is actively targeted and the declared guard catches it: only S4_BUILD executor may become external after explicit confirmation",
+      "executor": "skill-pressure-scenario",
+      "evidence_policy": "manual_live_qa"
+    },
+    {
+      "case_id": "SPR-FEEDBACK-07-happy",
+      "cap_id": "SPR-FEEDBACK-07",
+      "entry_point": "verification-runtime",
+      "entry_type": "CLI",
+      "category": "happy",
+      "technique": "use-case",
+      "given": "SPR-FEEDBACK-07 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the happy condition for verification-runtime",
+      "then": "the nominal approved Superpower path reaches the declared outcome: verification misses are recorded as structured checklist or archetype feedback and unresolved P2/P3 blocks signoff",
+      "executor": "pytest",
+      "evidence_policy": "automated_regression"
+    },
+    {
+      "case_id": "SPR-FEEDBACK-07-boundary",
+      "cap_id": "SPR-FEEDBACK-07",
+      "entry_point": "verification-runtime",
+      "entry_type": "CLI",
+      "category": "boundary",
+      "technique": "BVA",
+      "given": "SPR-FEEDBACK-07 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the boundary condition for verification-runtime",
+      "then": "the smallest valid input and largest expected stage list still produce the declared outcome: verification misses are recorded as structured checklist or archetype feedback and unresolved P2/P3 blocks signoff",
+      "executor": "pytest",
+      "evidence_policy": "automated_regression"
+    },
+    {
+      "case_id": "SPR-FEEDBACK-07-negative",
+      "cap_id": "SPR-FEEDBACK-07",
+      "entry_point": "verification-runtime",
+      "entry_type": "CLI",
+      "category": "negative",
+      "technique": "decision-table",
+      "given": "SPR-FEEDBACK-07 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the negative condition for verification-runtime",
+      "then": "invalid or premature action is rejected with the declared blocking behavior: verification misses are recorded as structured checklist or archetype feedback and unresolved P2/P3 blocks signoff",
+      "executor": "pytest",
+      "evidence_policy": "automated_regression"
+    },
+    {
+      "case_id": "SPR-FEEDBACK-07-integration",
+      "cap_id": "SPR-FEEDBACK-07",
+      "entry_point": "verification-runtime",
+      "entry_type": "CLI",
+      "category": "integration",
+      "technique": "use-case",
+      "given": "SPR-FEEDBACK-07 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the integration condition for verification-runtime",
+      "then": "the declared surface and its adjacent runtime artifact cooperate to produce the declared outcome: verification misses are recorded as structured checklist or archetype feedback and unresolved P2/P3 blocks signoff",
+      "executor": "pytest",
+      "evidence_policy": "automated_regression"
+    },
+    {
+      "case_id": "SPR-FEEDBACK-07-corner",
+      "cap_id": "SPR-FEEDBACK-07",
+      "entry_point": "verification-runtime",
+      "entry_type": "CLI",
+      "category": "corner",
+      "technique": "pairwise",
+      "given": "SPR-FEEDBACK-07 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the corner condition for verification-runtime",
+      "then": "combined edge inputs still preserve the declared outcome without weakening gates: verification misses are recorded as structured checklist or archetype feedback and unresolved P2/P3 blocks signoff",
+      "executor": "pytest",
+      "evidence_policy": "automated_regression"
+    },
+    {
+      "case_id": "SPR-FEEDBACK-07-error-guessing",
+      "cap_id": "SPR-FEEDBACK-07",
+      "entry_point": "verification-runtime",
+      "entry_type": "CLI",
+      "category": "error-guessing",
+      "technique": "error-guessing",
+      "given": "SPR-FEEDBACK-07 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the error-guessing condition for verification-runtime",
+      "then": "a known failure pattern is actively targeted and the declared guard catches it: verification misses are recorded as structured checklist or archetype feedback and unresolved P2/P3 blocks signoff",
+      "executor": "pytest",
+      "evidence_policy": "automated_regression"
+    },
+    {
+      "case_id": "SPR-FINISH-08-happy",
+      "cap_id": "SPR-FINISH-08",
+      "entry_point": "verification-runtime",
+      "entry_type": "CLI",
+      "category": "happy",
+      "technique": "use-case",
+      "given": "SPR-FINISH-08 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the happy condition for verification-runtime",
+      "then": "the nominal approved Superpower path reaches the declared outcome: completion claims require gate evidence and missing evidence forces blocked or partial wording",
+      "executor": "pytest",
+      "evidence_policy": "automated_regression"
+    },
+    {
+      "case_id": "SPR-FINISH-08-boundary",
+      "cap_id": "SPR-FINISH-08",
+      "entry_point": "verification-runtime",
+      "entry_type": "CLI",
+      "category": "boundary",
+      "technique": "BVA",
+      "given": "SPR-FINISH-08 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the boundary condition for verification-runtime",
+      "then": "the smallest valid input and largest expected stage list still produce the declared outcome: completion claims require gate evidence and missing evidence forces blocked or partial wording",
+      "executor": "pytest",
+      "evidence_policy": "automated_regression"
+    },
+    {
+      "case_id": "SPR-FINISH-08-negative",
+      "cap_id": "SPR-FINISH-08",
+      "entry_point": "verification-runtime",
+      "entry_type": "CLI",
+      "category": "negative",
+      "technique": "decision-table",
+      "given": "SPR-FINISH-08 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the negative condition for verification-runtime",
+      "then": "invalid or premature action is rejected with the declared blocking behavior: completion claims require gate evidence and missing evidence forces blocked or partial wording",
+      "executor": "pytest",
+      "evidence_policy": "automated_regression"
+    },
+    {
+      "case_id": "SPR-FINISH-08-integration",
+      "cap_id": "SPR-FINISH-08",
+      "entry_point": "verification-runtime",
+      "entry_type": "CLI",
+      "category": "integration",
+      "technique": "use-case",
+      "given": "SPR-FINISH-08 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the integration condition for verification-runtime",
+      "then": "the declared surface and its adjacent runtime artifact cooperate to produce the declared outcome: completion claims require gate evidence and missing evidence forces blocked or partial wording",
+      "executor": "pytest",
+      "evidence_policy": "automated_regression"
+    },
+    {
+      "case_id": "SPR-FINISH-08-corner",
+      "cap_id": "SPR-FINISH-08",
+      "entry_point": "verification-runtime",
+      "entry_type": "CLI",
+      "category": "corner",
+      "technique": "pairwise",
+      "given": "SPR-FINISH-08 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the corner condition for verification-runtime",
+      "then": "combined edge inputs still preserve the declared outcome without weakening gates: completion claims require gate evidence and missing evidence forces blocked or partial wording",
+      "executor": "pytest",
+      "evidence_policy": "automated_regression"
+    },
+    {
+      "case_id": "SPR-FINISH-08-error-guessing",
+      "cap_id": "SPR-FINISH-08",
+      "entry_point": "verification-runtime",
+      "entry_type": "CLI",
+      "category": "error-guessing",
+      "technique": "error-guessing",
+      "given": "SPR-FINISH-08 is evaluated from the approved Capability Registry and expected mock artifact",
+      "when": "the verifier exercises the error-guessing condition for verification-runtime",
+      "then": "a known failure pattern is actively targeted and the declared guard catches it: completion claims require gate evidence and missing evidence forces blocked or partial wording",
+      "executor": "pytest",
+      "evidence_policy": "automated_regression"
+    }
+  ]
+}
