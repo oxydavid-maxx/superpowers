@@ -55,4 +55,17 @@ $ack = Get-Content -Raw -LiteralPath $ackSchema
 Assert-Contains $ack "touched_files" "builder ack schema must report touched_files"
 Assert-Contains $ack "forbidden_paths" "builder ack schema must define forbidden paths for spec/verify/release ownership"
 
+# --- maturity feedback-loop contracts (job 2026-06-30-superpower-maturity-feedback-loop) ---
+Assert-Contains $brainstorming "stakeholder-needs\.json" "brainstorming must require SYS.1 stakeholder-needs.json before Spec Draft"
+Assert-Contains $brainstorming "material-unknowns\.json" "brainstorming must require material-unknowns.json (zero unresolved before Spec Draft)"
+Assert-Contains $brainstorming "decision-log\.md" "brainstorming must require decision-log.md"
+Assert-Contains $brainstorming "need_ids" "brainstorming must require Need-ID -> Cap-ID traceability"
+Assert-Contains $wv "test-design\.md" "writing-verification-plans must also emit test-design.md"
+Assert-Contains $wv "projection" "writing-verification-plans must define test-design.md as a deterministic projection of the JSON"
+
+$payload = Join-Path $Root "lib\runtime\payload"
+foreach ($m in @("sys1_elicitation.py", "test_design_projection.py", "verification_feedback.py", "autoapply_safety.py")) {
+  if (-not (Test-Path -LiteralPath (Join-Path $payload $m))) { throw "missing runtime module: lib/runtime/payload/$m" }
+}
+
 Write-Output "vmodel contract tests passed"

@@ -31,7 +31,12 @@ You MUST create a task for each of these items and complete them in order. The f
 2. **Offer the visual companion just-in-time** — NOT upfront. The first time a question would genuinely be clearer shown than described, offer it then (its own message); on approval its browser tab opens for you. If no visual question ever arises, never offer it. See the Visual Companion section below.
 3. **Ask clarifying questions exhaustively** — one at a time. Bar is ZERO material unknowns about intent / constraints / context. Keep going until exhausted; three questions is not a target.
 4. **Propose 2-3 approaches** — with trade-offs and your recommendation
-5. **Write spec DRAFT** — to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` (clearly labelled "Status: DRAFT"). Include the Required spec sections (Capability Registry, ## Surfaces, placeholder Prior-art section).
+4a. **SYS.1 stakeholder elicitation (HARD GATE — required BEFORE the Spec Draft).** Exhaustive stakeholder elicitation is not optional and not a summary. Emit three durable elicitation artifacts and they must pass before you may write step 5:
+    - `stakeholder-needs.json` — one row per elicited need: `{need_id, stakeholder, need, acceptance_signal}`. Elicitation must be EXHAUSTIVE across stakeholders/roles (not just the requester).
+    - `material-unknowns.json` — `[{id, question, status}]`; **ZERO unresolved material unknowns** are allowed before the Spec Draft (status must be `resolved` for every entry, or the gate blocks).
+    - `decision-log.md` — every material decision + its rationale, append-only.
+    Every `need_id` in `stakeholder-needs.json` MUST trace forward to a Capability Registry Cap-ID (`need_ids` on the cap) — an elicited need with no Cap-ID is a silently-dropped need and blocks. The deterministic gate is `lib/runtime/payload/sys1_elicitation.py:validate(...)`; it must return `ok:true` before step 5. (This is the upstream analogue of the prose↔registry / coverage gates: an explicit, acknowledged, traceable record — never "I think I understand".)
+5. **Write spec DRAFT** — to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` (clearly labelled "Status: DRAFT"). Include the Required spec sections (Capability Registry, ## Surfaces, placeholder Prior-art section). Each capability carries the `need_ids` it satisfies (Need→Cap traceability).
 6. **Expected mock v1** — after Spec Draft, produce the expected mock artifact so the user can review the rough shape before SOTA might reshape it. UI specs use a non-interactive web page; non-UI specs use a PNG, diagram, CLI transcript mock, API payload mock, or equivalent artifact.
 
 **PASS 2 — SOTA falsification & refine (mandatory; do NOT collapse into pass 1):**
