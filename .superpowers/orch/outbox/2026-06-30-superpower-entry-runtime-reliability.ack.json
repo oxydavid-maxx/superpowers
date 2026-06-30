@@ -4,21 +4,31 @@
   "builder_session": "Claude Code",
   "status": "done",
   "head_sha_before": "bbef986e132430054572bc414e15857ce1e3da9a",
-  "head_sha_after": "103eb7dbd02c3a51804340cdd4976677f571168f",
+  "head_sha_after": "987b05d1587ecac9abb0476a28b27099487dc7db",
+  "version": "6.0.3-vmodel.13",
   "touched_files": [
     "skills/using-superpowers/SKILL.md",
     "tests/test-vmodel-contracts.ps1",
     "scripts/pin-local-fork-install.ps1",
     "scripts/verify-local-fork-install.ps1",
     "FORK-MAINTENANCE.md",
+    ".claude-plugin/marketplace.json",
+    ".claude-plugin/plugin.json",
+    ".codex-plugin/plugin.json",
+    ".cursor-plugin/plugin.json",
+    ".kimi-plugin/plugin.json",
+    "gemini-extension.json",
+    "package.json",
     ".superpowers/orch/outbox/2026-06-30-superpower-entry-runtime-reliability.ack.json"
   ],
   "forbidden_paths": [],
   "tests": [
-    {"command": "py -3 -m pytest lib/runtime/tests -q", "result": "pass", "detail": "144 passed in 0.36s"},
-    {"command": "powershell -ExecutionPolicy Bypass -File tests/test-vmodel-contracts.ps1", "result": "pass", "detail": "vmodel contract tests passed"},
-    {"command": "powershell -ExecutionPolicy Bypass -File scripts/verify-local-fork-install.ps1", "result": "pass", "detail": "PASS: local Claude/Codex Superpowers installs are pinned to https://github.com/oxydavid-maxx/superpowers@6.0.3-vmodel.12"}
+    {"command": "bash scripts/bump-version.sh --check", "result": "pass", "detail": "All 7 declared files coherent at 6.0.3-vmodel.13"},
+    {"command": "bash tests/test-manifest-version-coherency.sh", "result": "pass", "detail": "PASS: all 7 declared version targets coherent at 6.0.3-vmodel.13"},
+    {"command": "bash tests/test-fork-provenance.sh", "result": "pass", "detail": "PASS: runtime manifests point to oxydavid-maxx/superpowers"},
+    {"command": "py -3 -m pytest lib/runtime/tests -q", "result": "pass", "detail": "144 passed in 0.19s"},
+    {"command": "powershell -ExecutionPolicy Bypass -File tests/test-vmodel-contracts.ps1", "result": "pass", "detail": "vmodel contract tests passed"}
   ],
-  "commit": "103eb7dbd02c3a51804340cdd4976677f571168f",
-  "notes": "Implemented S4_BUILD only. Did not edit spec/test-design/release/push files. pin-local-fork-install.ps1 was run locally to exercise Repin-ClaudeSkillRegistry and update the live registry before running verify-local-fork-install.ps1. Fixed a backslash-doubling bug in the plan's proposed regex replacement — used $activePath + \"\\skills\\\" instead of the plan's double-escaped form, which would have written double-backslashes into registry.yaml."
+  "commit": "987b05d1587ecac9abb0476a28b27099487dc7db",
+  "notes": "Implemented S4_BUILD only. Did not edit spec/test-design/release/push files. Original build commits: bbef986 (fix) through 103eb7d (ack). Version bump commit 987b05d added per FORK-MAINTENANCE.md requirement: shipped content changes must call scripts/bump-version.sh to increment vmodel tag. The ack head_sha_after records the build commit (987b05d), not a self-referential ack-only commit — the ack update and build commit are the same commit here because the ack is part of the version release artifact."
 }
