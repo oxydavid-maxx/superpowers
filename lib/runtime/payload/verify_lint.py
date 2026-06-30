@@ -14,6 +14,7 @@ DRIVING the product for real with deployed-surface evidence, and (2) information
 separation (an independent verifier given only the Registry). lint_ui_evidence is the
 sturdiest rule here because it demands a real artifact + constrains its URL."""
 import re
+from pathlib import Path
 
 VALID_TECHNIQUES = {"EP", "BVA", "decision-table", "state-transition",
                     "use-case", "pairwise", "error-guessing"}
@@ -92,6 +93,80 @@ def lint_ui_evidence(case):
     return []
 
 
+def _is_ui_cap(cap):
+    tags = {str(t).lower() for t in (cap.get("risk") or {}).get("tags", [])}
+    entry_type = str(cap.get("entry_type", "")).lower()
+    risk_entry_type = str((cap.get("risk") or {}).get("entry_type", "")).lower()
+    return (
+        entry_type == "ui"
+        or risk_entry_type == "ui"
+        or (cap.get("risk") or {}).get("ui") is True
+        or "ui" in tags
+    )
+
+
+def _skill_ui_human_available(td):
+    if "skill_ui_human_available" in td:
+        return bool(td["skill_ui_human_available"])
+    return Path("C:/dev/skill-ui-human/SKILL.md").exists()
+
+
+def lint_ui_human_preflight(td):
+    if any(_is_ui_cap(cap) for cap in td.get("registry", [])) and not _skill_ui_human_available(td):
+        return ["UI Cap-ID present but skill-ui-human unavailable (required dependency/preflight)"]
+    return []
+
+
+def lint_ui_human_case_detail(case):
+    """UI-human categories must name the concrete human-factor evidence they check."""
+    if case.get("entry_type") not in (None, "UI"):
+        return []
+    cid = case.get("cap_id", "?")
+    category = case.get("category")
+    then = (case.get("then") or "").lower()
+    if category == "responsive-mobile" and not ("390" in then and "overflow" in then):
+        return [f"{cid}: responsive-mobile case must include a 390px viewport overflow check"]
+    if category == "touch-targets" and not ("44" in then or "touch target" in then):
+        return [f"{cid}: touch-targets case must check touch target sizing"]
+    if category == "keyboard-focus" and not ("focus" in then and ("tab" in then or "keyboard" in then)):
+        return [f"{cid}: keyboard-focus case must check keyboard/tab focus"]
+    if category == "feedback-states" and not any(w in then for w in ("loading", "success", "error", "empty")):
+        return [f"{cid}: feedback-states case must check loading/success/error/empty states"]
+    if category == "runtime-cleanliness" and not ("console" in then and ("page error" in then or "page errors" in then)):
+        return [f"{cid}: runtime-cleanliness case must check console and page errors"]
+    if category == "visual-evidence" and not any(w in then for w in ("screenshot", "trace", "visual evidence")):
+        return [f"{cid}: visual-evidence case must require screenshot/trace evidence"]
+    return []
+
+
+def lint_runtime_verdicts(verdicts):
+    defects = []
+    for result in verdicts.get("results", []):
+        if result.get("entry_type") != "UI" or result.get("verdict") != "MATCHES":
+            continue
+        cid = result.get("cap_id", "?")
+        evidence = result.get("ui_human_evidence") or {}
+        if not evidence.get("screenshots"):
+            defects.append(f"{cid}: UI MATCHES missing screenshots")
+        overflow = evidence.get("viewport_overflow") or {}
+        if not overflow or any(bool(v) for v in overflow.values()):
+            defects.append(f"{cid}: UI MATCHES missing passing viewport/overflow evidence")
+        touch = evidence.get("touch_targets") or {}
+        if touch.get("min_px", 0) < 44 or touch.get("violations"):
+            defects.append(f"{cid}: UI MATCHES missing passing touch target evidence")
+        focus = evidence.get("keyboard_focus") or {}
+        if not (focus.get("tab_order_checked") and focus.get("visible_focus")):
+            defects.append(f"{cid}: UI MATCHES missing keyboard focus evidence")
+        if not evidence.get("feedback_states"):
+            defects.append(f"{cid}: UI MATCHES missing feedback states evidence")
+        runtime = evidence.get("runtime_cleanliness") or {}
+        if "console_errors" not in runtime or "page_errors" not in runtime:
+            defects.append(f"{cid}: UI MATCHES missing console/page error evidence")
+        elif runtime.get("console_errors") or runtime.get("page_errors"):
+            defects.append(f"{cid}: UI MATCHES has console/page errors")
+    return defects
+
+
 def lint_independence(td):
     """TD-07/E6 (IV&V): the test-design attests independence and verifier != builder.
     The real mechanism is information-separation (verifier given only the Registry);
@@ -108,10 +183,12 @@ def lint_all(td):
     defects = []
     cases = td.get("cases", [])
     defects += lint_independence(td)
+    defects += lint_ui_human_preflight(td)
     for c in cases:
         defects += lint_technique(c)
         defects += lint_proxy(c)
         defects += lint_ui_evidence(c)
+        defects += lint_ui_human_case_detail(c)
     for cap in td.get("registry", []):
         defects += lint_round_trip(cap, cases)
         defects += lint_pairwise(cap, cases)
@@ -124,10 +201,13 @@ def lint_test_design(td):
     pairwise/error-guessing/UI-evidence/independence) PLUS risk-scaled category
     coverage (every Cap-ID needs a case in each category its risk requires)."""
     import sys
-    from pathlib import Path
-    sys.path.insert(0, str(Path.home() / ".claude" / "lib"))
-    from risk_scale import required_categories
-    from verify_coverage import category_coverage
+    try:
+        from risk_scale import required_categories
+        from verify_coverage import category_coverage
+    except ImportError:
+        sys.path.insert(0, str(Path.home() / ".claude" / "lib"))
+        from risk_scale import required_categories
+        from verify_coverage import category_coverage
 
     defects = list(lint_all(td))
     cases = td.get("cases", [])
@@ -139,7 +219,10 @@ def lint_test_design(td):
     required, present = {}, {}
     for cap in td.get("registry", []):
         cid = cap.get("cap_id", "?")
-        required[cid] = required_categories(cap.get("risk") or {})
+        risk = dict(cap.get("risk") or {})
+        if cap.get("entry_type") and not risk.get("entry_type"):
+            risk["entry_type"] = cap.get("entry_type")
+        required[cid] = required_categories(risk)
         present[cid] = {c.get("category") for c in cases if c.get("cap_id") == cid}
     for cid, missing in category_coverage(required, present).items():
         defects.append(f"{cid}: missing required category(ies): {', '.join(missing)}")

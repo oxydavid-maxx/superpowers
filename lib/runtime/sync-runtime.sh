@@ -15,6 +15,7 @@ fi
 if [ -d "$SRC" ]; then
   for f in "$SRC"/*; do
     [ -e "$f" ] || continue
+    [ -f "$f" ] || continue
     cp -f "$f" "$DEST/" 2>/dev/null || echo "sync-runtime: failed to copy $(basename "$f")" >&2
   done
 fi

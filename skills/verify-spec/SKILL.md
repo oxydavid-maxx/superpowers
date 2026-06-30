@@ -60,10 +60,12 @@ Drive the running product as a real user would, perform the `acceptance_example`
 
 **UI evidence must be of the DEPLOYED surface.** Render and assert against the real user-facing URL (the deployed host), not localhost — a local render can pass while the user's CDN/cache serves a stale, broken asset (incident: CF edge-cached old CSS). Store the screenshot as `evidence_path` + the `evidence_url`; localhost evidence on a deployed capability is not a pass.
 
+**UI MATCHES requires `ui_human_evidence`.** For any UI Cap-ID marked MATCHES, include machine-readable `ui_human_evidence` with screenshots, viewport/overflow checks, touch target metrics, keyboard focus evidence, feedback states, and console/page error cleanliness. `skill-ui-human` is the required dependency for this human-facing evidence bar; if it is unavailable, the UI verdict is BLOCKED, not MATCHES.
+
 **Edit / save capabilities require a round-trip assertion.** For any capability that persists (edit, save, write), the case must: perform the edit → reload/re-read the same artifact → assert **the field you changed changed AND a declared invariant set is untouched** (e.g. "body updated AND frontmatter preserved"). Asserting only "saved" misses silent collateral damage (incident: frontmatter was clobbered on save).
 
 (verify-spec does NOT emit MISPLACED — placement is verify-arch's domain. If the capability is on the wrong surface, verify-arch already flagged it.)
 
-**Required evidence per verdict:** `{cap_id, verdict, given, when_performed, then_expected, observed, evidence_path, evidence_ts}`. A verdict with no observed-output assertion is itself a defect.
+**Required evidence per verdict:** `{cap_id, verdict, given, when_performed, then_expected, observed, evidence_path, evidence_ts}`. UI MATCHES verdicts additionally require `ui_human_evidence`. A verdict with no observed-output assertion is itself a defect.
 
 Write all verdicts to `verdicts.json` as `{"head_sha": "<git HEAD at verify time>", "results": [...]}`, consumed by `~/.claude/lib/verify_coverage.py`. The `head_sha` binds the verdicts to the exact commit verified — `R-PIPE-VERIFY-FINISH` treats verdicts whose `head_sha` ≠ current HEAD as stale (you must re-verify after any further commit).

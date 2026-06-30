@@ -6,7 +6,7 @@ description: Use AFTER build, BEFORE collapsing a multi-entry-point project as "
 # verify-arch — integration fitness function (SWE.5)
 
 ## When to use
-Multi-entry-point projects only (the spec's `## Surfaces` has ≥2 rows). Run AFTER `subagent-driven-development` finishes the build, BEFORE collapsing the project as done. For single-entry projects, skip — there's no cross-surface integration to verify; go straight to `verify-spec`.
+Multi-entry-point projects only (the spec's `## Surfaces` has ≥2 rows). Run AFTER `subagent-driven-development` finishes the build, BEFORE collapsing the project as done. For single-entry projects, record `verify-arch: N/A` and skip — there's no cross-surface integration to verify; go straight to `verify-spec`.
 
 ## What you check vs what verify-spec checks
 Both skills read from the SAME source — the spec's Capability Registry — but DIFFERENT columns:
@@ -54,4 +54,6 @@ Look up the row in the map; drive accordingly. Look up — do NOT guess.
 
 **Required evidence per verdict:** `{cap_id, verdict, route_taken, assertion, evidence_path, evidence_ts}`. A verdict with no observed-output assertion is itself a defect (verify-lint).
 
-Write all verdicts to `verdicts.json` as `{"head_sha": "<git HEAD at verify time>", "results": [...]}`, consumed by `~/.claude/lib/verify_coverage.py` (set-difference → completion gate). `head_sha` binds verdicts to the verified commit; `R-PIPE-VERIFY-FINISH` rejects verdicts whose `head_sha` ≠ current HEAD as stale.
+For single-entry projects, write the explicit N/A record instead of fabricating placement checks: `{"head_sha": "<git HEAD at verify time>", "verify-arch": "N/A", "reason": "single-entry project", "results": []}`.
+
+For multi-entry projects, write all verdicts to `verdicts.json` as `{"head_sha": "<git HEAD at verify time>", "results": [...]}`, consumed by `~/.claude/lib/verify_coverage.py` (set-difference → completion gate). `head_sha` binds verdicts to the verified commit; `R-PIPE-VERIFY-FINISH` rejects verdicts whose `head_sha` ≠ current HEAD as stale.

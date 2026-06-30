@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://superpowers.local/orch/builder-ack.schema.json",
+  "title": "Superpower External Builder Ack",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "job_id",
+    "builder_session",
+    "status",
+    "head_sha_before",
+    "head_sha_after",
+    "touched_files",
+    "forbidden_paths",
+    "tests"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "job_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "builder_session": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "done",
+        "blocked",
+        "needs-fix"
+      ]
+    },
+    "head_sha_before": {
+      "type": "string",
+      "minLength": 7
+    },
+    "head_sha_after": {
+      "type": "string",
+      "minLength": 7
+    },
+    "touched_files": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "forbidden_paths": {
+      "type": "array",
+      "description": "Any touched file matching job.forbidden_paths. Non-empty means orchestrator rejects the ack and returns a fix job.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "commit": {
+      "type": "string"
+    },
+    "tests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "command",
+          "exit_code"
+        ],
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "exit_code": {
+            "type": "integer"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "artifact_path": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "notes": {
+      "type": "string"
+    }
+  }
+}

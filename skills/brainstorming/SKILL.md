@@ -32,17 +32,17 @@ You MUST create a task for each of these items and complete them in order. The f
 3. **Ask clarifying questions exhaustively** — one at a time. Bar is ZERO material unknowns about intent / constraints / context. Keep going until exhausted; three questions is not a target.
 4. **Propose 2-3 approaches** — with trade-offs and your recommendation
 5. **Write spec DRAFT** — to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` (clearly labelled "Status: DRAFT"). Include the Required spec sections (Capability Registry, ## Surfaces, placeholder Prior-art section).
-6. **Visual mock v1** — for UI specs, produce the non-interactive mock (see "Visual mock after spec" section) so the user can review the rough shape before SOTA might reshape it.
+6. **Expected mock v1** — after Spec Draft, produce the expected mock artifact so the user can review the rough shape before SOTA might reshape it. UI specs use a non-interactive web page; non-UI specs use a PNG, diagram, CLI transcript mock, API payload mock, or equivalent artifact.
 
 **PASS 2 — SOTA falsification & refine (mandatory; do NOT collapse into pass 1):**
 
 7. **SOTA research** — for each significant approach/abstraction in the draft, WebSearch for prior art, named methods, and SOTA techniques. Per finding, write a verdict: adopt / adapt / reject + one-line reason + citation. Surface to the user any finding that genuinely reshapes the design (don't just append a section — bring it back to the conversation).
 8. **Second-pass brainstorming with the user** — fold SOTA findings back into the conversation. Ask exhaustively again until ZERO material unknowns about the revised direction (skipping this step is the known forgetting failure mode — SOTA must inform design, not decorate it).
 9. **Spec FINAL** — update the spec to "Status: FINAL"; populate the Prior-art / SOTA + verdicts section with the research results.
-10. **Visual mock v2** — for UI specs, regenerate the mock if the design materially changed in pass 2.
+10. **Expected mock v2** — after Spec Final, regenerate the expected mock artifact if the design materially changed in pass 2. UI specs use a non-interactive web page; non-UI specs use a PNG, diagram, CLI transcript mock, API payload mock, or equivalent artifact.
 11. **Spec self-review** — quick inline check for placeholders, contradictions, ambiguity, scope (see below)
 12. **User reviews written spec** — ask user to review the spec file before proceeding
-13. **Transition to implementation** — invoke writing-plans to create the implementation plan.
+13. **Transition to verification design** — invoke `writing-verification-plans` to create `.superpowers/verify/test-design.json`; only after that is approved may `writing-plans` create the implementation plan.
 
 ## Process Flow
 
@@ -56,7 +56,7 @@ digraph brainstorming {
     "Write design doc" [shape=box];
     "Spec self-review\n(fix inline)" [shape=box];
     "User reviews spec?" [shape=diamond];
-    "Invoke writing-plans skill" [shape=doublecircle];
+    "Invoke writing-verification-plans skill" [shape=doublecircle];
 
     "Explore project context" -> "Ask clarifying questions";
     "Ask clarifying questions" -> "Propose 2-3 approaches";
@@ -67,11 +67,11 @@ digraph brainstorming {
     "Write design doc" -> "Spec self-review\n(fix inline)";
     "Spec self-review\n(fix inline)" -> "User reviews spec?";
     "User reviews spec?" -> "Write design doc" [label="changes requested"];
-    "User reviews spec?" -> "Invoke writing-plans skill" [label="approved"];
+    "User reviews spec?" -> "Invoke writing-verification-plans skill" [label="approved"];
 }
 ```
 
-**The terminal state is invoking writing-plans.** Do NOT invoke frontend-design, mcp-builder, or any other implementation skill. Placement decisions (which capability lives on which surface) are locked down in the spec's Capability Registry — see "Required spec sections" below; no separate architecture skill is invoked.
+**The terminal state is invoking `writing-verification-plans`.** Do NOT invoke frontend-design, mcp-builder, writing-plans, or any implementation skill before the verification plan exists and is approved. Placement decisions (which capability lives on which surface) are locked down in the spec's Capability Registry — see "Required spec sections" below; no separate architecture skill is invoked.
 
 ## The Process
 
@@ -138,9 +138,10 @@ After the spec review loop passes, ask the user to review the written spec befor
 
 Wait for the user's response. If they request changes, make them and re-run the spec review loop. Only proceed once the user approves.
 
-**Implementation:**
+**Verification design handoff:**
 
-- Invoke writing-plans to create the implementation plan.
+- Invoke `writing-verification-plans` to create `.superpowers/verify/test-design.json`.
+- Do NOT invoke `writing-plans` until the verification plan exists and is approved.
 - Do NOT invoke unrelated implementation skills (frontend-design, mcp-builder, etc.).
 
 ## Key Principles
@@ -216,10 +217,21 @@ Present BOTH to the author: the VALID `registry.json` skeleton (required fields 
 
 **Worked example — one cap, `type_tags: [editable, persists]`.** `scaffold([{"cap_id": "CAP-01", "type_tags": ["editable", "persists"]}])` emits a registry entry whose `state_data_contract` has empty `reload` and `invariant` slots, and a prompt sheet asking *"How does the user confirm the change survived (reload)? What must stay unchanged (invariant)?"*. The author fills them — e.g. `reload: "reopen the note shows the edit"`, `invariant: "other fields and frontmatter untouched"` — plus the baseline slots (entry_point/entry_type/reachable_path, acceptance given/when/then, ≥1 failure_mode). The resulting registry block then satisfies the deterministic STRUCTURAL/PRESENCE checks of `spec_quality_audit` by construction. It does NOT by itself guarantee the CONTENT-quality judgements — A2 (the `then` is an observable outcome, not a proxy), A8 (the outcome matches the declared surface), A9 (high-risk prose carries the matching tag) — nor high-risk independent review; those remain residual checks the author must still satisfy. Scaffold guarantees the slots are present, not that what fills them is good.
 
-## Visual mock after spec (whenever the spec has a Capability Registry with UI surfaces)
+## Expected mock after spec (every spec)
 
-After the spec is approved and BEFORE handing off to writing-plans, produce a NON-INTERACTIVE visual mock so the user can SEE the rough shape — but ONLY when the spec has UI surfaces (skip for pure CLI/API/library specs, where a clickable mock is meaningless):
+After Spec Draft and again after Spec Final if SOTA/refinement materially changed the design, produce an expected mock artifact so the user can see or inspect the intended outcome before verification planning. This is required for every spec, not only UI.
+
+For UI surfaces, produce a NON-INTERACTIVE web page mock so the user can SEE the rough shape:
 
 1. Generate: `py -3 ~/.claude/lib/mock_visual.py <spec.md> <outdir>/site --title "<project> (spec mock)"` (reads the Capability Registry; one clickable page per UI entry point).
 2. Serve: `bash ~/.claude/lib/serve-tunnel.sh <outdir>/site` — it prints PUBLIC_URL.
 3. Give the user the PUBLIC_URL; say it is NON-INTERACTIVE (just the look/layout) — click through the surfaces.
+
+For non-UI specs, produce the closest equivalent expected mock artifact:
+
+- CLI: command transcript mock or terminal screenshot/PNG.
+- API: request/response payload mock or sequence diagram.
+- Library: public API usage snippet plus expected return/output diagram when helpful.
+- Data/migration/background job: before/after table, state diagram, or PNG/diagram.
+
+Store the artifact path/URL in the spec near the Capability Registry. The verification plan must read this artifact as intent evidence, but it must still derive tests from the Registry acceptance examples.

@@ -4,6 +4,25 @@ failure gets MORE rigor, not less — the cmd-center incident's core lesson (bot
 its bugs were silent: a clobbered frontmatter and a CF-cached stale asset)."""
 BASELINE = {"happy", "boundary", "negative"}
 HIGH_RISK = {"multi_component", "money", "auth", "data_loss", "multi_entry"}
+UI_HUMAN_CATEGORIES = {
+    "browser-clickthrough",
+    "responsive-mobile",
+    "touch-targets",
+    "keyboard-focus",
+    "feedback-states",
+    "runtime-cleanliness",
+    "visual-evidence",
+}
+
+
+def is_ui_risk(risk):
+    tags = {str(t).lower() for t in risk.get("tags", [])}
+    entry_type = str(risk.get("entry_type", "")).lower()
+    return (
+        entry_type == "ui"
+        or risk.get("ui") is True
+        or "ui" in tags
+    )
 
 
 def required_categories(risk):
@@ -16,4 +35,6 @@ def required_categories(risk):
         req.add("environment")
     if risk.get("silent"):
         req.add("error-guessing")   # detectability: silent failures get a targeted case
+    if is_ui_risk(risk):
+        req |= UI_HUMAN_CATEGORIES
     return req
