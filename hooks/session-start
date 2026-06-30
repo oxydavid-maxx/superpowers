@@ -17,6 +17,14 @@ fi
 # Read using-superpowers content
 using_superpowers_content=$(cat "${PLUGIN_ROOT}/skills/using-superpowers/SKILL.md" 2>&1 || echo "Error reading using-superpowers skill")
 
+active_status="Superpowers active: unknown (no .superpowers-active.json found under ${PLUGIN_ROOT})"
+active_meta="${PLUGIN_ROOT}/.superpowers-active.json"
+if [ -f "$active_meta" ]; then
+  active_version="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$active_meta" | head -1 || true)"
+  active_sha="$(sed -n 's/.*"gitCommitSha"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$active_meta" | head -1 || true)"
+  active_status="Superpowers active: ${active_version:-unknown} @ ${active_sha:-unknown}"
+fi
+
 # Escape string for JSON embedding using bash parameter substitution.
 # Each ${s//old/new} is a single C-level pass - orders of magnitude
 # faster than the character-by-character loop this replaces.
@@ -31,7 +39,8 @@ escape_for_json() {
 }
 
 using_superpowers_escaped=$(escape_for_json "$using_superpowers_content")
-session_context="<EXTREMELY_IMPORTANT>\nYou have superpowers.\n\n**Below is the full content of your 'superpowers:using-superpowers' skill - your introduction to using skills. For all other skills, use the 'Skill' tool:**\n\n${using_superpowers_escaped}\n</EXTREMELY_IMPORTANT>"
+active_status_escaped=$(escape_for_json "$active_status")
+session_context="<EXTREMELY_IMPORTANT>\nYou have superpowers.\n\n${active_status_escaped}\n\n**Below is the full content of your 'superpowers:using-superpowers' skill - your introduction to using skills. For all other skills, use the 'Skill' tool:**\n\n${using_superpowers_escaped}\n</EXTREMELY_IMPORTANT>"
 
 # Output context injection as JSON.
 # Cursor hooks expect additional_context (snake_case).

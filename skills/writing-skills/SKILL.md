@@ -663,6 +663,7 @@ Deploying untested skills = deploying untested code. It's a violation of quality
 
 **Deployment:**
 - [ ] Commit skill to git and push to your fork (if configured)
+- [ ] For plugin-packaged skills, release through the stable current pointer model: immutable versioned cache, `current` pointer, `.superpowers-active.json` resolved metadata, and `pin-local-fork-install` / verifier green for both Claude and Codex
 - [ ] Consider contributing back via PR (if broadly useful)
 
 ## Discovery Workflow

@@ -54,6 +54,30 @@ function Git-Head([string]$path) {
   return ($head | Select-Object -First 1)
 }
 
+function Resolve-PluginTarget([string]$path) {
+  if (-not (Test-Path -LiteralPath $path)) {
+    return ""
+  }
+  $item = Get-Item -LiteralPath $path -Force
+  if ($item.LinkType -and $item.Target) {
+    return (Resolve-Path -LiteralPath $item.Target).Path
+  }
+  return (Resolve-Path -LiteralPath $path).Path
+}
+
+function Check-ActiveMetadata([string]$path, [string]$expectedVersion, [string]$expectedSha) {
+  $metaPath = Join-Path $path ".superpowers-active.json"
+  $meta = Read-Json $metaPath
+  if ($null -eq $meta) { return }
+  if ($meta.version -ne $expectedVersion) {
+    Add-Error "$metaPath version expected '$expectedVersion', got '$($meta.version)'"
+  }
+  if ($expectedSha -and $meta.gitCommitSha -ne $expectedSha) {
+    Add-Error "$metaPath gitCommitSha expected '$expectedSha', got '$($meta.gitCommitSha)'"
+  }
+}
+
+
 Check-ManifestField $sourceClaudeManifest "repository" $forkUrl
 Check-ManifestField $sourceCodexManifest "repository" $forkUrl
 Check-ManifestField $sourceCodexManifest "interface.websiteURL" $forkUrl
@@ -74,14 +98,19 @@ if ($null -ne $installed) {
     if ($entry.version -ne $ExpectedVersion) {
       Add-Error "Claude superpowers-dev version expected $ExpectedVersion, got $($entry.version)"
     }
-    if ($entry.installPath -notmatch "\\superpowers-dev\\superpowers\\$([regex]::Escape($ExpectedVersion))$") {
-      Add-Error "Claude superpowers-dev installPath does not point at versioned fork cache: $($entry.installPath)"
+    if ($entry.installPath -notmatch "\\superpowers-dev\\superpowers\\current$") {
+      Add-Error "Claude superpowers-dev installPath does not point at stable current pointer: $($entry.installPath)"
     }
     if (-not (Test-Path -LiteralPath $entry.installPath)) {
       Add-Error "Claude superpowers-dev installPath missing: $($entry.installPath)"
     } else {
-      Check-ManifestField (Join-Path $entry.installPath ".claude-plugin\plugin.json") "repository" $forkUrl
-      $claudeHead = Git-Head $entry.installPath
+      $resolvedClaude = Resolve-PluginTarget $entry.installPath
+      if ($resolvedClaude -notmatch "\\superpowers-dev\\superpowers\\$([regex]::Escape($ExpectedVersion))$") {
+        Add-Error "Claude current pointer resolves to wrong target: $resolvedClaude"
+      }
+      Check-ManifestField (Join-Path $resolvedClaude ".claude-plugin\plugin.json") "repository" $forkUrl
+      Check-ActiveMetadata $resolvedClaude $ExpectedVersion $sourceHead
+      $claudeHead = Git-Head $resolvedClaude
       if ($sourceHead -and $claudeHead -and $sourceHead -ne $claudeHead) {
         Add-Error "Claude cache HEAD $claudeHead does not match source HEAD $sourceHead"
       }
@@ -99,14 +128,19 @@ if (Test-Path -LiteralPath $codexOfficial) {
   Add-Error "Codex official Superpowers cache exists: $codexOfficial"
 }
 
-$codexCache = Join-Path $CodexHome "plugins\cache\superpowers-dev\superpowers\$ExpectedVersion"
-if (-not (Test-Path -LiteralPath $codexCache)) {
-  Add-Error "Codex fork cache missing: $codexCache"
+$codexCurrent = Join-Path $CodexHome "plugins\cache\superpowers-dev\superpowers\current"
+if (-not (Test-Path -LiteralPath $codexCurrent)) {
+  Add-Error "Codex fork current pointer missing: $codexCurrent"
 } else {
+  $codexCache = Resolve-PluginTarget $codexCurrent
+  if ($codexCache -notmatch "\\superpowers-dev\\superpowers\\$([regex]::Escape($ExpectedVersion))$") {
+    Add-Error "Codex current pointer resolves to wrong target: $codexCache"
+  }
   $codexManifest = Join-Path $codexCache ".codex-plugin\plugin.json"
   Check-ManifestField $codexManifest "version" $ExpectedVersion
   Check-ManifestField $codexManifest "repository" $forkUrl
   Check-ManifestField $codexManifest "interface.websiteURL" $forkUrl
+  Check-ActiveMetadata $codexCache $ExpectedVersion $sourceHead
   $codexHead = Git-Head $codexCache
   if ($sourceHead -and $codexHead -and $sourceHead -ne $codexHead) {
     Add-Error "Codex cache HEAD $codexHead does not match source HEAD $sourceHead"

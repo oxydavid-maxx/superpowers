@@ -87,20 +87,26 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/pin-local-fork-insta
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-local-fork-install.ps1 -ExpectedVersion 6.0.3-vmodel.<N+1>
 ```
 
-`pin-local-fork-install.ps1` (idempotent, temp-home-friendly): (re)creates the versioned
-`cache/superpowers-dev/superpowers/<version>` fork cache as a git checkout of source@HEAD for
-BOTH the Claude and Codex homes, marks only that cache `.in_use`, **quarantines** (moves, never
-deletes) stale fork caches + any official-marketplace Superpowers caches into
-`plugins/.quarantine-superpowers-<ts>/`, backs up + repins Claude `installed_plugins.json`
-(removes `superpowers@claude-plugins-official`, points `superpowers@superpowers-dev` at the new
-cache with the new version + gitCommitSha), and leaves `known_marketplaces.json` + other plugins
-untouched. Then it runs the verifier.
+`pin-local-fork-install.ps1` (idempotent, temp-home-friendly): (re)creates the immutable
+versioned `cache/superpowers-dev/superpowers/<version>` fork cache as a git checkout of
+source@HEAD for BOTH the Claude and Codex homes, then switches the stable
+`cache/superpowers-dev/superpowers/current` pointer to that version. The current target carries
+`.in_use` and `.superpowers-active.json` resolved metadata (`version`, `gitCommitSha`, source,
+activation time). The script **quarantines** (moves, never deletes) stale fork caches + any
+official-marketplace Superpowers caches into `plugins/.quarantine-superpowers-<ts>/`, backs up +
+repins Claude `installed_plugins.json` (removes `superpowers@claude-plugins-official`, points
+`superpowers@superpowers-dev` at the stable `current` pointer with the new version +
+gitCommitSha), and leaves `known_marketplaces.json` + other plugins untouched. Then it runs the
+verifier.
 
-**Drift self-detection:** the verifier compares cache HEAD vs source HEAD and cache manifest
-version vs ExpectedVersion. A future official re-add or a stale cache is caught by re-running
-pin (idempotent) or verify — no manual cache surgery, no remembering.
+**Drift self-detection:** the verifier requires Claude's `installPath` to point at the stable
+`current` pointer, resolves that pointer for Claude and Codex, and compares resolved metadata +
+cache HEAD + cache manifest version against ExpectedVersion/source HEAD. A future official re-add,
+broken pointer, stale cache, or rollback without metadata is caught by re-running pin
+(idempotent) or verify — no manual cache surgery, no remembering.
 
 **Regression for the scripts themselves:**
 `powershell -NoProfile -ExecutionPolicy Bypass -File tests/test-local-fork-install.ps1`
-seeds a dirty temp install and proves official-removed + caches-quarantined + version/HEAD
-current + idempotent. Run it whenever the pin/verify scripts change.
+seeds a dirty temp install and proves official-removed + stable current pointer +
+caches-quarantined + version/HEAD current + idempotent. Run it whenever the pin/verify scripts
+change.

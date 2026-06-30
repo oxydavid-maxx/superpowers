@@ -8,11 +8,12 @@
   Codex home it:
     * (re)creates a versioned fork cache  cache/superpowers-dev/superpowers/<version>  as a
       git checkout of the source at HEAD (so cache HEAD == source HEAD);
-    * marks ONLY that cache .in_use; removes .in_use from any other superpowers cache;
+    * switches a stable  cache/superpowers-dev/superpowers/current  pointer to that versioned
+      cache, then marks ONLY the resolved active cache .in_use;
     * QUARANTINES (moves, never deletes) stale fork caches + any official-marketplace
       Superpowers caches into plugins/.quarantine-superpowers-<ts>/;
     * for Claude: backs up installed_plugins.json, removes a superpowers@claude-plugins-official
-      entry if present, and points superpowers@superpowers-dev at the new versioned cache
+      entry if present, and points superpowers@superpowers-dev at the stable current pointer
       (version + gitCommitSha updated). Other plugins and known_marketplaces.json are untouched.
   Then runs verify-local-fork-install.ps1 unless -SkipVerify.
 
@@ -63,13 +64,47 @@ function Ensure-ForkCache([string]$cacheBase) {
   return $dest
 }
 
+function Write-ActiveMetadata([string]$versionedPath) {
+  $meta = [ordered]@{
+    schema_version = "1.0"
+    version = $ExpectedVersion
+    gitCommitSha = $sourceHead
+    sourceRepo = $SourceRepo
+    activatedAt = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+    pointer = "current"
+    target = $versionedPath
+  }
+  $meta | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $versionedPath ".superpowers-active.json") -Encoding utf8
+}
+
+function Set-CurrentPointer([string]$cacheBase, [string]$versionedPath) {
+  $current = Join-Path $cacheBase "current"
+  if (Test-Path -LiteralPath $current) {
+    $item = Get-Item -LiteralPath $current -Force
+    $target = if ($item.LinkType -and $item.Target) { (Resolve-Path -LiteralPath $item.Target).Path } else { "" }
+    if ($target -eq (Resolve-Path -LiteralPath $versionedPath).Path) {
+      Write-ActiveMetadata $versionedPath
+      New-Item -ItemType File -Force -Path (Join-Path $current ".in_use") | Out-Null
+      return $current
+    }
+    if (-not $item.LinkType) {
+      throw "current path exists but is not a link/junction: $current"
+    }
+    [System.IO.Directory]::Delete($current, $false)
+  }
+  New-Item -ItemType Junction -Path $current -Target $versionedPath | Out-Null
+  Write-ActiveMetadata $versionedPath
+  New-Item -ItemType File -Force -Path (Join-Path $current ".in_use") | Out-Null
+  return $current
+}
+
 # Move stale fork caches (version != expected) + official Superpowers caches to quarantine.
 function Quarantine-Superpowers([string]$homeDir) {
   $qroot = Join-Path $homeDir "plugins\.quarantine-superpowers-$ts"
   $cacheRoot = Join-Path $homeDir "plugins\cache"
   $forkBase = Join-Path $cacheRoot "superpowers-dev\superpowers"
   if (Test-Path -LiteralPath $forkBase) {
-    Get-ChildItem -LiteralPath $forkBase -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne $ExpectedVersion } | ForEach-Object {
+    Get-ChildItem -LiteralPath $forkBase -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne $ExpectedVersion -and $_.Name -ne "current" } | ForEach-Object {
       New-Item -ItemType Directory -Force -Path $qroot | Out-Null
       $d = Join-Path $qroot ("fork-" + $_.Name)
       Move-Item -LiteralPath $_.FullName -Destination $d -Force
@@ -127,14 +162,18 @@ print("repinned", version)
 
 # ---- Claude ----
 Log "pinning Claude home: $ClaudeHome"
-$claudeActive = Ensure-ForkCache (Join-Path $ClaudeHome "plugins\cache\superpowers-dev\superpowers")
+$claudeBase = Join-Path $ClaudeHome "plugins\cache\superpowers-dev\superpowers"
+$claudeVersioned = Ensure-ForkCache $claudeBase
+$claudeActive = Set-CurrentPointer $claudeBase $claudeVersioned
 $result.claude_active_path = $claudeActive
 Quarantine-Superpowers $ClaudeHome
 Repin-ClaudeManifest $ClaudeHome $claudeActive
 
 # ---- Codex ----
 Log "pinning Codex home: $CodexHome"
-$codexActive = Ensure-ForkCache (Join-Path $CodexHome "plugins\cache\superpowers-dev\superpowers")
+$codexBase = Join-Path $CodexHome "plugins\cache\superpowers-dev\superpowers"
+$codexVersioned = Ensure-ForkCache $codexBase
+$codexActive = Set-CurrentPointer $codexBase $codexVersioned
 $result.codex_cache_path = $codexActive
 Quarantine-Superpowers $CodexHome
 
