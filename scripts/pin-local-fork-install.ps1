@@ -168,6 +168,23 @@ print("repinned", version)
   Log "repinned Claude installed_plugins.json -> $ExpectedVersion ($sourceHead)"
 }
 
+function Repin-ClaudeSkillRegistry([string]$homeDir, [string]$activePath) {
+  $registry = Join-Path $homeDir "skills\registry.yaml"
+  if (-not (Test-Path -LiteralPath $registry)) { return }
+
+  $bak = "$registry.bak-$ts"
+  Copy-Item -LiteralPath $registry -Destination $bak -Force
+  $script:result.backup_paths += $bak
+
+  $content = Get-Content -Raw -LiteralPath $registry -Encoding utf8
+  $escapedHome = [regex]::Escape($homeDir)
+  $pattern = "${escapedHome}\\plugins\\cache\\superpowers-dev\\superpowers\\[^\\`r`n]+?\\skills\\"
+  $replacement = $activePath + "\skills\"
+  $updated = [regex]::Replace($content, $pattern, $replacement)
+  Set-Content -LiteralPath $registry -Value $updated -Encoding utf8
+  Log "repinned Claude skills\registry.yaml entries -> superpowers-dev\superpowers\current"
+}
+
 # ---- Claude ----
 Log "pinning Claude home: $ClaudeHome"
 $claudeBase = Join-Path $ClaudeHome "plugins\cache\superpowers-dev\superpowers"
@@ -176,6 +193,7 @@ $claudeActive = Set-CurrentPointer $claudeBase $claudeVersioned
 $result.claude_active_path = $claudeActive
 Quarantine-Superpowers $ClaudeHome
 Repin-ClaudeManifest $ClaudeHome $claudeActive
+Repin-ClaudeSkillRegistry $ClaudeHome $claudeActive
 
 # ---- Codex ----
 Log "pinning Codex home: $CodexHome"

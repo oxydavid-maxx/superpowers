@@ -123,6 +123,18 @@ if ($officialInUse) {
   Add-Error "official Claude Superpowers cache still has .in_use marker(s): $($officialInUse.FullName -join '; ')"
 }
 
+$claudeSkillRegistry = Join-Path $ClaudeHome "skills\registry.yaml"
+if (Test-Path -LiteralPath $claudeSkillRegistry) {
+  $hardPins = Select-String -LiteralPath $claudeSkillRegistry -Pattern "superpowers-dev\\superpowers\\(?!current\\)" -ErrorAction SilentlyContinue
+  if ($hardPins) {
+    Add-Error "Claude skills registry entry hard-pins Superpowers version instead of current: $($hardPins.LineNumber -join ', ')"
+  }
+  $missingCurrent = Select-String -LiteralPath $claudeSkillRegistry -Pattern "superpowers-dev\\superpowers\\current\\skills\\using-superpowers\\SKILL.md" -ErrorAction SilentlyContinue
+  if (-not $missingCurrent) {
+    Add-Error "Claude skills registry does not point using-superpowers at stable current pointer"
+  }
+}
+
 $codexOfficial = Join-Path $CodexHome "plugins\cache\claude-plugins-official\superpowers"
 if (Test-Path -LiteralPath $codexOfficial) {
   Add-Error "Codex official Superpowers cache exists: $codexOfficial"

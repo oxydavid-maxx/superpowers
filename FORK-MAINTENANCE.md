@@ -110,3 +110,5 @@ broken pointer, stale cache, or rollback without metadata is caught by re-runnin
 seeds a dirty temp install and proves official-removed + stable current pointer +
 caches-quarantined + version/HEAD current + idempotent. Run it whenever the pin/verify scripts
 change.
+
+Release/install verification must confirm both plugin install metadata and Claude skill registry entries route through `cache/superpowers-dev/superpowers/current`. Versioned `6.0.3-vmodel.N` caches remain immutable audit targets, but active discovery must not hard-pin skill entries to those versioned paths.

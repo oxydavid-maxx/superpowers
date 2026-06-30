@@ -28,6 +28,19 @@ Assert-Contains $brainstorming "expected mock v1" "brainstorming must require ex
 Assert-Contains $brainstorming "expected mock v2" "brainstorming must require expected mock v2 after Spec Final"
 Assert-Contains $brainstorming "non-UI" "brainstorming mock policy must cover non-UI specs"
 
+$usingSuperpowers = Get-Content -Raw -LiteralPath (Join-Path $Root "skills\using-superpowers\SKILL.md")
+Assert-Contains $usingSuperpowers "complete stage-order" "using-superpowers must require a complete stage-order recap"
+Assert-Contains $usingSuperpowers "S0_DISCUSS" "using-superpowers must name S0_DISCUSS"
+Assert-Contains $usingSuperpowers "S2_VERIFICATION_PLAN" "using-superpowers must name S2_VERIFICATION_PLAN"
+Assert-Contains $usingSuperpowers "S4_BUILD executor" "using-superpowers must define S4_BUILD executor"
+Assert-Contains $usingSuperpowers "current session" "using-superpowers must use current session as the default owner/executor wording"
+Assert-Contains $usingSuperpowers "fixed boilerplate" "using-superpowers must reject boilerplate-only entry responses"
+Assert-Contains $usingSuperpowers "superpowers:writing-verification-plans" "using-superpowers must map S2 to writing-verification-plans"
+Assert-Contains $usingSuperpowers "superpowers:verify-spec" "using-superpowers must map S5_VERIFY_SPEC to verify-spec"
+if ($usingSuperpowers -match "Owner:\s*(Codex|Claude)") {
+  throw "using-superpowers must not hardcode Codex or Claude as default owner"
+}
+
 $verifyArch = Get-Content -Raw -LiteralPath (Join-Path $Root "skills\verify-arch\SKILL.md")
 Assert-Contains $verifyArch "verify-arch: N/A" "verify-arch must document single-entry N/A verdict"
 Assert-Contains $verifyArch "single-entry" "verify-arch must be conditional on multi-entry projects"
@@ -54,6 +67,16 @@ if ($job -match "home-superpower") {
 $ack = Get-Content -Raw -LiteralPath $ackSchema
 Assert-Contains $ack "touched_files" "builder ack schema must report touched_files"
 Assert-Contains $ack "forbidden_paths" "builder ack schema must define forbidden paths for spec/verify/release ownership"
+
+$pinScript = Get-Content -Raw -LiteralPath (Join-Path $Root "scripts\pin-local-fork-install.ps1")
+Assert-Contains $pinScript "Repin-ClaudeSkillRegistry" "pin-local-fork-install must repin Claude skills registry entries"
+Assert-Contains $pinScript "skills\\registry.yaml" "pin-local-fork-install must update Claude skills/registry.yaml"
+Assert-Contains $pinScript "superpowers-dev\\superpowers\\current" "pin-local-fork-install must route registry entries through current"
+
+$verifyInstall = Get-Content -Raw -LiteralPath (Join-Path $Root "scripts\verify-local-fork-install.ps1")
+Assert-Contains $verifyInstall "skills\\registry.yaml" "verify-local-fork-install must inspect Claude skills registry"
+Assert-Contains $verifyInstall "hard-pins" "verify-local-fork-install must reject hard-pinned Superpower registry entries"
+Assert-Contains $verifyInstall "superpowers-dev\\superpowers\\current" "verify-local-fork-install must require current pointer in registry entries"
 
 # --- maturity feedback-loop contracts (job 2026-06-30-superpower-maturity-feedback-loop) ---
 Assert-Contains $brainstorming "stakeholder-needs\.json" "brainstorming must require SYS.1 stakeholder-needs.json before Spec Draft"

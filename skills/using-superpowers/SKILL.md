@@ -43,6 +43,43 @@ If CLAUDE.md, GEMINI.md, or AGENTS.md says "don't use TDD" and a skill says "alw
 
 Skills speak in actions ("dispatch a subagent", "create a todo", "read a file") rather than naming any one runtime's tools. For per-platform tool equivalents and instructions-file conventions, see [claude-code-tools.md](references/claude-code-tools.md), [codex-tools.md](references/codex-tools.md), [copilot-tools.md](references/copilot-tools.md), [gemini-tools.md](references/gemini-tools.md), [pi-tools.md](references/pi-tools.md), and [antigravity-tools.md](references/antigravity-tools.md). Gemini CLI users get the tool mapping loaded automatically via GEMINI.md.
 
+## Superpower Entry Comprehension Gate
+
+When the user explicitly says "use superpower", "superpower", "superpower fork", or equivalent, the first substantive response MUST be a natural-language complete stage-order recap. This is a comprehension gate, not a fixed banner.
+
+The response MUST include:
+
+| Stage | Required skill mapping |
+|---|---|
+| S0_DISCUSS | `superpowers:brainstorming` |
+| S1_SPEC_DRAFT | `superpowers:brainstorming` |
+| S1_EXPECTED_MOCK_V1 | `superpowers:brainstorming` |
+| S1_SOTA | `superpowers:brainstorming` + source research/WebSearch |
+| S1_SPEC_FINAL | `superpowers:brainstorming` |
+| S1_EXPECTED_MOCK_V2 | `superpowers:brainstorming` |
+| S2_VERIFICATION_PLAN | `superpowers:writing-verification-plans` |
+| S3_IMPLEMENTATION_PLAN | `superpowers:writing-plans` |
+| S4_BUILD | `superpowers:executing-plans`, `superpowers:test-driven-development`, or `superpowers:subagent-driven-development` as applicable |
+| S5_VERIFY_ARCH | `superpowers:verify-arch`, only for multi-entry projects |
+| S5_VERIFY_SPEC | `superpowers:verify-spec` |
+| S5_FIX_LOOP | `superpowers:systematic-debugging` plus repeat S4/S5 |
+| S6_RELEASE | `superpowers:verification-before-completion` + `superpowers:finishing-a-development-branch` |
+
+The response MUST also state:
+
+- Current state is `S0_DISCUSS`.
+- Current action is requirements clarification only.
+- Owner is `current session`.
+- `S4_BUILD executor` defaults to `current session`.
+- Only `S4_BUILD executor` can become external, and only after explicit confirmation before S4_BUILD.
+
+The response MUST NOT:
+
+- Only paste fixed boilerplate.
+- Hardcode Codex or Claude as the default owner.
+- Ask for an external session before S4_BUILD.
+- Write a spec, plan, or code before S0_DISCUSS is complete.
+
 # Using Skills
 
 ## The Rule
