@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "job_id": "2026-06-30-superpower-maturity-feedback-loop",
+  "builder_session": "home-superpower",
+  "status": "done",
+  "head_sha_before": "b3503fc1264ac72e897b36f015b3273a9bd035ce",
+  "head_sha_after": "4ab2c1034ff7984583e7c0cfce0ca639c1ccd67c",
+  "review_round": "2026-06-30 orchestrator review fix (gaps 1-3)",
+  "gaps_fixed": {
+    "1_missing_ack": "ack committed in this round (the prior round wrote it on disk AFTER commit b3503fc, so it was absent from that commit). It is in the plugin repo at .superpowers/orch/outbox/2026-06-30-superpower-maturity-feedback-loop.ack.json and committed.",
+    "2_house_cleaning_actually_wired": "NOT a future seam anymore. Added ~/.claude/hooks/house_cleaning/audit_verification_feedback.py (run(ctx)->findings, reads the global verification-feedback sink, surfaces unresolved P0-P3) and REGISTERED it in ~/.claude/hooks/house_cleaning/report.py:run_and_collect (the 'Verification Gap Feedback' section) so the EXISTING weekly routine runs it — no new scheduler. Read-only audit; calibration auto-apply remains gated by autoapply_safety. Test: ~/.claude/hooks/house_cleaning/tests/test_audit_verification_feedback.py (3 tests incl. a registration guard).",
+    "3_signoff_consumer": "Real gate consumer, not a standalone helper. ~/.claude/hooks/pretooluse-verify-finish-gate.py:decide() now takes feedback_events, loads <repo>/.superpowers/verify/feedback-events.jsonl in main(), and DENIES 收尾 when verification_feedback.blocks_signoff() is non-empty (unresolved P0-P3 -> blocked is not done). Tests: ~/.claude/lib/tests/test_verify_finish_gate.py::test_finish_blocked_by_unresolved_feedback_gap and ::test_finish_allowed_when_feedback_resolved. The plugin doc (docs/orch) now documents the wired consumer; verify-spec/finish wording references it via the doc."
+  },
+  "touched_files": {
+    "plugin_repo (superpowers-dev, branch codex/superpower-maturity-feedback-loop)": [
+      "docs/orch/2026-06-30-maturity-feedback-loop.md (WIRED, not seam)",
+      ".superpowers/orch/outbox/2026-06-30-superpower-maturity-feedback-loop.ack.json"
+    ],
+    "claude_repo (~/.claude, committed 895da6d4ff5ff8a93421175d6e59820e1bf0701d)": [
+      "lib/verification_feedback.py (synced from fork payload so the gate/house-cleaning import it)",
+      "hooks/pretooluse-verify-finish-gate.py (blocks_signoff consumer)",
+      "hooks/house_cleaning/audit_verification_feedback.py",
+      "hooks/house_cleaning/report.py (registered the audit)",
+      "hooks/house_cleaning/tests/test_audit_verification_feedback.py",
+      "lib/tests/test_verify_finish_gate.py (2 feedback-gate tests)"
+    ]
+  },
+  "forbidden_paths": {
+    "declared": ["docs/superpowers/specs/**", ".superpowers/verify/**", ".superpowers/release/**"],
+    "touched": [],
+    "respected": true
+  },
+  "tests": [
+    {"command": "py -3 -m pytest lib/runtime/tests -q  (plugin)", "result": "pass", "summary": "144 passed (incl. 17 maturity tests)."},
+    {"command": "powershell -ExecutionPolicy Bypass -File tests/test-vmodel-contracts.ps1  (plugin)", "result": "pass", "summary": "vmodel contract tests passed (maturity contracts incl.)."},
+    {"command": "py -3 -m pytest ~/.claude/hooks/house_cleaning/tests/test_audit_verification_feedback.py -q", "phase": "RED->GREEN", "result": "pass", "summary": "RED (module+registration absent) -> 3 passed (unresolved surfaced, resolved suppressed, registered-in-report guard)."},
+    {"command": "py -3 -m pytest ~/.claude/lib/tests/test_verify_finish_gate.py -k feedback -q", "phase": "RED->GREEN", "result": "pass", "summary": "RED (decide() had no feedback_events) -> 2 passed (unresolved P1 blocks 收尾; resolved allows)."}
+  ],
+  "commit": "4ab2c1034ff7984583e7c0cfce0ca639c1ccd67c (plugin doc) + 895da6d4ff5ff8a93421175d6e59820e1bf0701d (~/.claude wiring)",
+  "notes": "All 3 review gaps fixed (TDD RED->GREEN). Cross-repo: the loop's deterministic modules ship in the fork (lib/runtime/payload) and the live CONSUMERS are wired in ~/.claude (finish gate + house-cleaning weekly routine) — both committed locally, NOT pushed (per job). FLAGGED (not mine to fix here): ~/.claude/lib/tests/test_verify_finish_gate.py has 2 PRE-EXISTING failures — test_finish_allowed_with_honest_na_out_of_scope and test_finish_blocked_when_out_of_scope_row_missing. Root cause: ~/.claude/lib/verify_coverage.py was reverted to the pre-N/A version (0 out_of_scope refs; an intentional change per a system reminder), dropping the out_of_scope contract those tests + the gate's res.get('out_of_scope_violations') expect. This is UNRELATED to the feedback loop and I did not touch it — re-adding vs removing that contract is an opposite-direction decision whose intent I can't verify, so it needs orchestrator/光佑 clarification rather than a guess. My feedback wiring passes in isolation (18 passed besides those 2). No push on either repo."
+}
