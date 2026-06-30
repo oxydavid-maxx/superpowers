@@ -81,8 +81,16 @@ function Set-CurrentPointer([string]$cacheBase, [string]$versionedPath) {
   $current = Join-Path $cacheBase "current"
   if (Test-Path -LiteralPath $current) {
     $item = Get-Item -LiteralPath $current -Force
-    $target = if ($item.LinkType -and $item.Target) { (Resolve-Path -LiteralPath $item.Target).Path } else { "" }
-    if ($target -eq (Resolve-Path -LiteralPath $versionedPath).Path) {
+    # Fail-soft on a DANGLING junction: if the recorded target no longer exists (it was
+    # quarantined/removed), resolve to "" so it won't match and we fall through to rebuild
+    # below. -ErrorAction SilentlyContinue is scoped to THIS resolve only — a non-link
+    # `current` still throws at the explicit guard below, so real failures aren't masked.
+    $target = ""
+    if ($item.LinkType -and $item.Target) {
+      $resolved = Resolve-Path -LiteralPath $item.Target -ErrorAction SilentlyContinue
+      if ($resolved) { $target = $resolved.Path }
+    }
+    if ($target -ne "" -and $target -eq (Resolve-Path -LiteralPath $versionedPath).Path) {
       Write-ActiveMetadata $versionedPath
       New-Item -ItemType File -Force -Path (Join-Path $current ".in_use") | Out-Null
       return $current
