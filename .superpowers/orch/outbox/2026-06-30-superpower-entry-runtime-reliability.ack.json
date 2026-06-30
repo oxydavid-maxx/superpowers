@@ -4,7 +4,7 @@
   "builder_session": "Claude Code",
   "status": "done",
   "head_sha_before": "bbef986e132430054572bc414e15857ce1e3da9a",
-  "head_sha_after": "85df942",
+  "head_sha_after": "103eb7dbd02c3a51804340cdd4976677f571168f",
   "touched_files": [
     "skills/using-superpowers/SKILL.md",
     "tests/test-vmodel-contracts.ps1",
@@ -19,6 +19,6 @@
     {"command": "powershell -ExecutionPolicy Bypass -File tests/test-vmodel-contracts.ps1", "result": "pass", "detail": "vmodel contract tests passed"},
     {"command": "powershell -ExecutionPolicy Bypass -File scripts/verify-local-fork-install.ps1", "result": "pass", "detail": "PASS: local Claude/Codex Superpowers installs are pinned to https://github.com/oxydavid-maxx/superpowers@6.0.3-vmodel.12"}
   ],
-  "commit": "85df942",
+  "commit": "103eb7dbd02c3a51804340cdd4976677f571168f",
   "notes": "Implemented S4_BUILD only. Did not edit spec/test-design/release/push files. pin-local-fork-install.ps1 was run locally to exercise Repin-ClaudeSkillRegistry and update the live registry before running verify-local-fork-install.ps1. Fixed a backslash-doubling bug in the plan's proposed regex replacement — used $activePath + \"\\skills\\\" instead of the plan's double-escaped form, which would have written double-backslashes into registry.yaml."
 }
