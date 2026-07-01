@@ -64,7 +64,7 @@ Write `.superpowers/verify/test-design.json` with:
 }
 ```
 
-Every Cap-ID must include all categories required by `risk_scale.required_categories()`. For UI Cap-IDs that includes `browser-clickthrough`, `responsive-mobile`, `touch-targets`, `keyboard-focus`, `feedback-states`, `runtime-cleanliness`, and `visual-evidence`.
+Every Cap-ID must include all categories required by `risk_scale.required_categories()`. For UI Cap-IDs that includes `browser-clickthrough`, `responsive-mobile`, `touch-targets`, `keyboard-focus`, `feedback-states`, `runtime-cleanliness`, `visual-evidence`, `heuristic-eval`, and `assistive-tech`. HIGH_RISK Cap-IDs (any of `multi_component`/`money`/`auth`/`data_loss`/`multi_entry` risk tags) additionally require `exploratory` and `forbidden-state` — use these EXACT strings (not descriptive variants like `exploratory-charter`, `heuristic-evaluation`, `forbidden-state-oracles`, or `fuzz-inputs`); `required_categories()` matches on exact string equality, so a richer-sounding category name that doesn't match the canonical one still counts as missing.
 
 ## UI-Human Requirement
 
@@ -91,6 +91,35 @@ UI cases must include:
 ## Builder Boundary
 
 External builders may only own implementation after `writing-plans`. They never own this verification plan, independent review, `verify-arch`, `verify-spec`, release, or push.
+
+## Mandatory Self-Check Before Presenting As Done (2026-07-01 lesson)
+
+A prior session added/corrected a handful of Cap-IDs, ran `lint_test_design`, saw
+defects on 33 OTHER pre-existing Cap-IDs, and reasoned "not caused by me, out of
+scope" — then presented the file as reviewable. The user caught this: a
+verification plan with systemic missing-category gaps is thin regardless of who
+introduced the gap, and 2026 SOTA on release readiness is explicit that coverage
+means real user-journey coverage, not "did we test the parts we touched." Do
+NOT repeat this reasoning. Before presenting `test-design.json` as ready for
+user review:
+
+1. Run `lint_test_design` over the WHOLE file, not just the Cap-IDs you touched.
+   Any defect anywhere in the file blocks a clean "ready for review" — either
+   fix it in the same pass or explicitly flag it to the user as a known,
+   named gap with a plan to close it (never silently absorb it as
+   "pre-existing").
+2. For any Cap-ID that represents a cross-cutting journey/day-in-life/full-
+   regression harness, do not just check its category checklist — read its
+   actual case TEXT. If the spec changed (new capability, corrected
+   acceptance criteria), that harness's case text must explicitly reference
+   the new/changed click-through, not a stale generic template left over
+   from before the change. A rich category list with stale content is still
+   a thin plan.
+3. When authoring case text, avoid the proxy-word list in `verify_lint.py`'s
+   `_PROXY` (`http 200`, `look(s)`, `seem(s)`, `structural-guard`, `exists`,
+   `compile(s)`, `unverified`) — note that ordinary phrases like "no longer
+   exists" or "the file exists" trip this filter; write around it (e.g. "was
+   already removed" instead of "no longer exists").
 
 ## Superpower Progress Line
 
