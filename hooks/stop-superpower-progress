@@ -1,40 +1,102 @@
 #!/usr/bin/env python3
-"""Audit-first hook: detect missing Superpower progress lines on assistant stop.
-Reads the Stop event JSON from stdin.
-Always exits 0 (audit-only; not yet fail-closed).
+"""Enforce the Superpower Progress Line at every pause/gate transition.
+
+Reads the Stop event JSON from stdin. Self-contained: determines whether this
+session used a superpowers:* skill by scanning the transcript directly (does
+NOT depend on userpromptsubmit-superpower-entry — that hook never persisted
+any session state, so a check gated on it would silently never fire).
+
+Fails CLOSED (exit 2; paired with hooks.json's asyncRewake so the message is
+actually surfaced to the model) only when BOTH are true: a superpowers:*
+skill was invoked somewhere in this transcript, AND the assistant's most
+recent turn is missing the progress-line marker. Any other case exits 0
+(no transcript, no superpowers skill ever invoked, marker present).
 """
 import json
+import os
+import re
 import sys
+from pathlib import Path
 
 PROGRESS_MARKER = "Superpower: now="
+TRANSCRIPT_ENV = "CLAUDE_TRANSCRIPT_FILE"
+SUPERPOWER_SKILL_RE = re.compile(r"superpowers:[a-z][a-z0-9-]*", re.IGNORECASE)
 
-def main():
+
+def _read_transcript(payload: dict) -> str:
+    text = payload.get("transcript_text", "")
+    if text:
+        return text
+    path = payload.get("transcript_path", "") or os.environ.get(TRANSCRIPT_ENV, "")
+    if not path:
+        return ""
     try:
-        event = json.load(sys.stdin)
-    except (json.JSONDecodeError, ValueError):
-        sys.exit(0)
+        return Path(path).read_text(encoding="utf-8", errors="ignore")
+    except Exception:
+        return ""
 
-    # The Stop event may carry the assistant's final message text
-    message = (
-        event.get("message", "")
-        or event.get("response", "")
-        or ""
+
+def _last_assistant_text(transcript_text: str) -> str:
+    """Transcript is JSONL. Return the most recent assistant text content,
+    ignoring tool_use/tool_result blocks (per the real on-disk record shape:
+    {"type":"assistant","message":{"content":[{"type":"text","text":...}, ...]}})."""
+    last = ""
+    for line in transcript_text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except (json.JSONDecodeError, ValueError):
+            continue
+        if rec.get("type") != "assistant":
+            continue
+        msg = rec.get("message", {})
+        content = msg.get("content", "") if isinstance(msg, dict) else ""
+        if isinstance(content, str):
+            if content.strip():
+                last = content
+        elif isinstance(content, list):
+            parts = [
+                b.get("text", "")
+                for b in content
+                if isinstance(b, dict) and b.get("type") == "text" and b.get("text", "").strip()
+            ]
+            if parts:
+                last = "\n".join(parts)
+    return last
+
+
+def main() -> int:
+    try:
+        payload = json.loads(sys.stdin.read() or "{}")
+    except json.JSONDecodeError:
+        payload = {}
+
+    transcript_text = _read_transcript(payload)
+    if not transcript_text:
+        return 0  # can't determine anything from here — fail open
+
+    if not SUPERPOWER_SKILL_RE.search(transcript_text):
+        return 0  # no superpowers:* skill ever invoked this session — out of scope
+
+    last_message = _last_assistant_text(transcript_text)
+    if not last_message:
+        return 0  # no assistant text found (e.g. tool-only turn) — nothing to check
+
+    if PROGRESS_MARKER in last_message:
+        return 0  # compliant
+
+    print(
+        f"Superpower progress line missing from the last response "
+        f"(no '{PROGRESS_MARKER}...'). A superpowers:* skill is active this "
+        "session — every user-facing pause for question/approval/block and "
+        "every FSM gate/owner transition must carry the compact progress "
+        "line. Add it to your next response.",
+        file=sys.stderr,
     )
+    return 2
 
-    # Only audit if this looks like a Superpower session (hint in session metadata)
-    session_meta = event.get("session", {}) or {}
-    if not session_meta.get("superpower_active"):
-        sys.exit(0)
-
-    if message and PROGRESS_MARKER not in message:
-        print(
-            "[stop-superpower-progress audit] Assistant response did not include "
-            f"'{PROGRESS_MARKER}...' compact progress line. "
-            "Required at every Superpower pause or gate transition.",
-            file=sys.stderr,
-        )
-
-    sys.exit(0)
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
