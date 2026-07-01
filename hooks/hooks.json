@@ -22,19 +22,6 @@
           }
         ]
       }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "py -3 \"${CLAUDE_PLUGIN_ROOT}/hooks/stop-superpower-progress\"",
-            "async": true,
-            "asyncRewake": true,
-            "rewakeSummary": "Superpower progress line missing"
-          }
-        ]
-      }
     ]
   }
 }
