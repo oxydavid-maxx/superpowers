@@ -2,8 +2,18 @@
 """Audit-first hook: detect Superpower entry prompts.
 Reads the UserPromptSubmit event JSON from stdin.
 Always exits 0 (audit-only; not yet fail-closed).
+
+2026-07-01 fix (光佑): on a superpower-entry prompt, REFRESH the progress state from
+on-disk ground truth (progress_state.refresh_progress) and print the DERIVED line to
+stderr, instead of a generic reminder. The agent reads this line — it is not composed
+from memory, so a skipped step (S1_SOTA, S2_VERIFICATION_PLAN, ...) cannot be silently
+claimed as done. Opt-in via the existing `.superpowers/` presence convention (D7);
+skips derivation entirely (fail-open, no progress.json written) for repos that never
+adopted the pipeline.
 """
 import json
+import os
+import subprocess
 import sys
 import re
 
@@ -13,6 +23,16 @@ SUPERPOWER_PATTERNS = [
     r'superpower\s+fork',
 ]
 
+
+def _git_root():
+    try:
+        out = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True,
+                             text=True, timeout=5)
+        return out.stdout.strip() if out.returncode == 0 else None
+    except Exception:
+        return None
+
+
 def main():
     try:
         event = json.load(sys.stdin)
@@ -21,14 +41,26 @@ def main():
         sys.exit(0)
 
     prompt = event.get("prompt", "")
-    for pattern in SUPERPOWER_PATTERNS:
-        if re.search(pattern, prompt, re.IGNORECASE):
-            print(
-                "[superpower-entry audit] Superpower entry detected in prompt. "
-                "Agent should declare FSM state and emit compact progress line before any action.",
-                file=sys.stderr,
-            )
-            break
+    if not any(re.search(p, prompt, re.IGNORECASE) for p in SUPERPOWER_PATTERNS):
+        sys.exit(0)
+
+    root = _git_root()
+    if not root or not os.path.isdir(os.path.join(root, ".superpowers")):
+        sys.exit(0)   # D7: repo never opted into the FSM pipeline — nothing to derive
+
+    try:
+        sys.path.insert(0, os.path.expanduser("~/.claude/lib"))
+        from progress_state import refresh_progress
+        progress = refresh_progress(root)
+        print(
+            f"[superpower-entry] Ground-truth-derived progress (from "
+            f".superpowers/fsm/progress.json, not the agent's memory): {progress['line']}\n"
+            "Reproduce this line verbatim in your response at the next gate/pause — "
+            "do not compose your own from recollection.",
+            file=sys.stderr,
+        )
+    except Exception:
+        pass  # fail-open: this hook never blocks, and a derivation error must not crash it
 
     sys.exit(0)
 
