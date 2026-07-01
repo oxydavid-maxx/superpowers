@@ -11,12 +11,27 @@ actually surfaced to the model) only when BOTH are true: a superpowers:*
 skill was invoked somewhere in this transcript, AND the assistant's most
 recent turn is missing the progress-line marker. Any other case exits 0
 (no transcript, no superpowers skill ever invoked, marker present).
+
+FLUSH-LAG RETRY (2026-07-01): the transcript file on disk can lag slightly
+behind the just-emitted assistant turn (async harness write vs. this hook's
+read are not strictly sequenced) — confirmed in production: a live session hit
+4 consecutive false "missing" verdicts even though each retried response
+correctly included the marker (see
+docs/superpowers/... incident notes / the marketplace commit history around
+1a1153b, which validated only against STATIC snapshots — the race only shows
+up under live, rapid Stop-hook retries). Mitigation: if the marker is missing
+on the first read, re-read the transcript a few times with a short backoff
+before concluding it is genuinely absent. Bounded (<=~300ms total) so this
+never meaningfully slows a normal Stop.
 """
 import json
 import os
 import re
 import sys
+import time
 from pathlib import Path
+
+_RETRY_DELAYS_S = (0.05, 0.1, 0.15)  # ~300ms total across 3 retries
 
 PROGRESS_MARKER = "Superpower: now="
 TRANSCRIPT_ENV = "CLAUDE_TRANSCRIPT_FILE"
@@ -67,25 +82,45 @@ def _last_assistant_text(transcript_text: str) -> str:
     return last
 
 
+def _has_marker_now(payload: dict) -> tuple[bool, str]:
+    """One fresh read + derivation pass. Returns (has_marker_or_out_of_scope, last_message)."""
+    transcript_text = _read_transcript(payload)
+    if not transcript_text:
+        return True, ""  # can't determine anything — fail open (treat as compliant)
+    if not SUPERPOWER_SKILL_RE.search(transcript_text):
+        return True, ""  # out of scope this session
+    last_message = _last_assistant_text(transcript_text)
+    if not last_message:
+        return True, ""  # tool-only turn — nothing to check
+    return (PROGRESS_MARKER in last_message), last_message
+
+
 def main() -> int:
     try:
         payload = json.loads(sys.stdin.read() or "{}")
     except json.JSONDecodeError:
         payload = {}
 
-    transcript_text = _read_transcript(payload)
-    if not transcript_text:
-        return 0  # can't determine anything from here — fail open
+    # A `transcript_text` embedded directly in the payload is a fixed snapshot
+    # from stdin — re-reading it can't get fresher, so only retry the
+    # file-backed path (transcript_text absent, path re-readable from disk).
+    can_retry = not payload.get("transcript_text") and bool(
+        payload.get("transcript_path") or os.environ.get(TRANSCRIPT_ENV)
+    )
 
-    if not SUPERPOWER_SKILL_RE.search(transcript_text):
-        return 0  # no superpowers:* skill ever invoked this session — out of scope
+    ok, last_message = _has_marker_now(payload)
+    if not ok and can_retry:
+        for delay in _RETRY_DELAYS_S:
+            time.sleep(delay)
+            ok, last_message = _has_marker_now(payload)
+            if ok:
+                break
 
-    last_message = _last_assistant_text(transcript_text)
-    if not last_message:
-        return 0  # no assistant text found (e.g. tool-only turn) — nothing to check
-
-    if PROGRESS_MARKER in last_message:
-        return 0  # compliant
+    if ok:
+        return 0
+    # ok=False implies last_message is non-empty (see _has_marker_now: every
+    # out-of-scope/empty case returns ok=True), so this is a genuine
+    # in-scope, marker-missing verdict.
 
     print(
         f"Superpower progress line missing from the last response "
