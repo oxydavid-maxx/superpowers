@@ -39,13 +39,24 @@ def test_thin_edit_spec_cannot_final():           # THE falsification
     assert a4["status"] == "fail"
 
 
+def _full_elicitation_for(cap_id):
+    return {
+        "stakeholder_needs": [{"need_id": "N-1"}],
+        "material_unknowns": [{"id": "U-1", "status": "resolved"}],
+        "decision_log_text": "decided X because Y",
+        "mock_meta": {"material_final_spec_change": False, "mock_v2_na_reason": "no material change"},
+        "sota_records": [{"cap_id": cap_id, "sources": [{"name": "Gmail", "url": "https://gmail.com", "verdict": "adapt"}]}],
+    }
+
+
 def test_complete_edit_spec_can_final():           # control
     cap = dict(THIN_EDIT[0])
     cap["state_data_contract"] = {"reload": "reopen shows the edit", "invariant": "frontmatter untouched"}
     cap["failure_modes"] = ["empty title shows inline error"]
     cap["acceptance"] = {"given": "a task", "when": "user edits body and saves",
                          "then": "the edited body is visible to the user after reload"}
-    r = audit_spec([cap], tier="standard")
+    cap["need_ids"] = ["N-1"]
+    r = audit_spec([cap], tier="standard", elicitation=_full_elicitation_for("CAP-01"))
     assert r["final_ready"] is True
 
 
@@ -60,7 +71,9 @@ def test_output_key_is_risk_tier_not_tier():
     assert "risk_tier" in r and "tier" not in r
 
 def test_output_validates_against_schema():
-    jsonschema.validate(audit_spec(AUTHZ_CAP, tier="high", review_verdict="pass"), SCHEMA)
+    cap = dict(AUTHZ_CAP[0]); cap["need_ids"] = ["N-1"]
+    jsonschema.validate(audit_spec([cap], tier="high", review_verdict="pass",
+                                    elicitation=_full_elicitation_for("CAP-01")), SCHEMA)
 
 
 
@@ -238,7 +251,8 @@ def test_high_tier_flags_independent_review():
 
 
 def test_high_tier_unblocks_when_review_passes():          # reviewer fix: the unblock path
-    r = audit_spec([_HIGH_CAP], tier="high", review_verdict="pass")
+    cap = dict(_HIGH_CAP); cap["need_ids"] = ["N-1"]
+    r = audit_spec([cap], tier="high", review_verdict="pass", elicitation=_full_elicitation_for("A"))
     assert r["final_ready"] is True
     assert r["independent_review"]["verdict"] == "pass"
 
@@ -287,3 +301,90 @@ def test_a9_under_tagged_money_cap_cannot_final():      # end-to-end: derives st
 def test_intent_trailing_garbage_rejected():           # Minor: anchored intent regex
     md = "---\nintent: trivial-no-capability evil\nreason: docs\n---\n# Spec\n"
     assert audit_spec_file(md)["final_ready"] is False
+
+
+# --- A10: elicitation/mock/SOTA artifact presence (2026-07-01 recurrence-fix audit) ---
+# Real incident: two specs went straight to "FINAL CANDIDATE" with no DRAFT step, no
+# stakeholder-needs.json, no mock v1/v2, and reused an OLD spec's SOTA references for
+# 3 new/changed capabilities instead of actually searching prior art. Progress-line
+# format checks never catch this — only checking the artifacts themselves does.
+
+_STANDARD_CAP = [{"cap_id": "C-1", "type_tags": ["ui"], "entry_point": "p.html",
+                  "entry_type": "ui", "reachable_path": "/p", "need_ids": ["N-1"],
+                  "acceptance": {"given": "a", "when": "b", "then": "a banner appears on the page"},
+                  "state_data_contract": None, "failure_modes": ["a clear error appears"],
+                  "gap_questions": []}]
+
+_VALID_ELICITATION = {
+    "stakeholder_needs": [{"need_id": "N-1"}],
+    "material_unknowns": [{"id": "U-1", "status": "resolved"}],
+    "decision_log_text": "decided X because Y",
+    "mock_meta": {"material_final_spec_change": False, "mock_v2_na_reason": "no material change"},
+    "sota_records": [{"cap_id": "C-1", "sources": [{"name": "Gmail", "url": "https://gmail.com", "verdict": "adapt"}]}],
+}
+
+
+def test_a10_missing_all_elicitation_artifacts_blocks_final():
+    r = audit_spec(_STANDARD_CAP, tier="standard")     # no elicitation supplied at all
+    a10 = next(i for i in r["items"] if i["id"] == "A10")
+    assert a10["status"] == "fail"
+    assert r["final_ready"] is False
+
+
+def test_a10_reused_sota_source_blocks_final():        # the exact incident: reused old spec's SOTA
+    elicitation = dict(_VALID_ELICITATION)
+    elicitation["sota_records"] = [{"cap_id": "C-1", "sources": [
+        {"name": "old menu", "url": "https://x", "verdict": "adopt", "reused_from_prior_spec": True}]}]
+    r = audit_spec(_STANDARD_CAP, tier="standard", elicitation=elicitation)
+    a10 = next(i for i in r["items"] if i["id"] == "A10")
+    assert a10["status"] == "fail" and "reused" in a10["detail"].lower()
+    assert r["final_ready"] is False
+
+
+def test_a10_missing_mock_v2_when_spec_materially_changed_blocks_final():
+    elicitation = dict(_VALID_ELICITATION)
+    elicitation["mock_meta"] = {"material_final_spec_change": True, "mock_v1_score": 0.6}  # no mock_v2_score
+    r = audit_spec(_STANDARD_CAP, tier="standard", elicitation=elicitation)
+    a10 = next(i for i in r["items"] if i["id"] == "A10")
+    assert a10["status"] == "fail"
+    assert r["final_ready"] is False
+
+
+def test_a10_complete_elicitation_passes_and_allows_final():
+    r = audit_spec(_STANDARD_CAP, tier="standard", elicitation=_VALID_ELICITATION)
+    a10 = next(i for i in r["items"] if i["id"] == "A10")
+    assert a10["status"] == "pass"
+    assert r["final_ready"] is True
+
+
+def test_a10_exempt_for_trivial_tier():
+    r = audit_spec([], tier="trivial", intent="trivial-no-capability")
+    assert not any(i["id"] == "A10" for i in r["items"])
+
+
+def test_audit_spec_file_forwards_elicitation_to_allow_final():
+    md = """# Spec
+
+```registry
+[{"cap_id": "C-1", "type_tags": ["ui"], "entry_point": "p.html", "entry_type": "ui",
+  "reachable_path": "/p", "need_ids": ["N-1"],
+  "acceptance": {"given": "a", "when": "b", "then": "a banner appears on the page"},
+  "state_data_contract": null, "failure_modes": ["a clear error appears"], "gap_questions": []}]
+```
+"""
+    r = audit_spec_file(md, tier="standard", elicitation=_full_elicitation_for("C-1"))
+    assert r["final_ready"] is True
+
+
+def test_audit_spec_file_without_elicitation_blocks_standard_tier():
+    md = """# Spec
+
+```registry
+[{"cap_id": "C-1", "type_tags": ["ui"], "entry_point": "p.html", "entry_type": "ui",
+  "reachable_path": "/p",
+  "acceptance": {"given": "a", "when": "b", "then": "a banner appears on the page"},
+  "state_data_contract": null, "failure_modes": ["a clear error appears"], "gap_questions": []}]
+```
+"""
+    r = audit_spec_file(md, tier="standard")
+    assert r["final_ready"] is False

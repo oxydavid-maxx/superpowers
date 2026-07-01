@@ -173,6 +173,33 @@ def _stub(cap):
     return "pass"
 
 
+def _a10_elicitation_complete(registry, elicitation):
+    """A10 (2026-07-01 recurrence-fix audit): the spec may not reach FINAL unless the
+    brainstorming pipeline's real produced artifacts are present and valid — SYS.1
+    stakeholder elicitation, mock v1/v2 progression, and a genuine (non-reused) SOTA
+    pass-2 citation per Cap-ID. Spec-level (not per-cap), like A1: an absent
+    `elicitation` dict is treated as ALL-EMPTY, not skipped — a caller that forgets to
+    load the artifacts must fail closed, not silently pass."""
+    import os as _os2, sys as _sys2
+    _sys2.path.insert(0, _os2.path.expanduser("~/.claude/lib"))
+    from sys1_elicitation import validate as _sys1_validate
+    from visual_artifact_policy import validate_mock_iteration
+    from sota_pass2 import validate_sota_pass2
+
+    e = elicitation or {}
+    defects = []
+    sys1 = _sys1_validate(
+        stakeholder_needs=e.get("stakeholder_needs") or [],
+        material_unknowns=e.get("material_unknowns") or [],
+        decision_log_text=e.get("decision_log_text") or "",
+        registry={"capabilities": registry or []},
+    )
+    defects += sys1["errors"]
+    defects += validate_mock_iteration(e.get("mock_meta") or {})
+    defects += validate_sota_pass2(registry or [], e.get("sota_records") or [])
+    return ("fail", "; ".join(defects)) if defects else ("pass", "")
+
+
 _ITEMS = {"A1": _stub, "A2": a2_oracle_complete, "A3": a3_surface_complete,
           "A4": a4_state_data_contract, "A5": a5_failure_modes,
           "A6": a6_type_tags_required, "A7": a7_gap_questions_resolved,
@@ -182,8 +209,8 @@ _ITEMS = {"A1": _stub, "A2": a2_oracle_complete, "A3": a3_surface_complete,
 _TIER_RANK = {"trivial": 0, "standard": 1, "high": 2}
 
 _TIER_ITEMS = {"trivial": {"A1", "A2", "A6"},
-               "standard": {"A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9"},
-               "high": {"A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9"}}
+               "standard": {"A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10"},
+               "high": {"A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10"}}
 
 
 def derive_risk_tier(registry, *, intent=None):
@@ -210,9 +237,13 @@ def _resolve_tier(derived, supplied):
     return (supplied if _TIER_RANK[supplied] > _TIER_RANK[derived] else derived), None
 
 
-def audit_spec(registry, *, tier=None, review_verdict=None, intent=None):
+def audit_spec(registry, *, tier=None, review_verdict=None, intent=None, elicitation=None):
     """AUTHORITY (§15.0). DERIVES risk_tier; final_ready RE-DERIVED from items every call.
-    Empty registry / unknown tier / cap-less items are defects."""
+    Empty registry / unknown tier / cap-less items are defects.
+
+    `elicitation`: optional dict consumed by A10 (spec-level, not per-cap — like A1). See
+    _a10_elicitation_complete. Absent/None is NOT "skip the check" for standard/high tier —
+    it is treated as all-empty, so a caller that forgets to load the artifacts fails closed."""
     derived = derive_risk_tier(registry, intent=intent)
     if derived is None:
         return {"schema_version": "1.0", "risk_tier": None, "items": [],
@@ -233,6 +264,9 @@ def audit_spec(registry, *, tier=None, review_verdict=None, intent=None):
         return {"schema_version": "1.0", "risk_tier": risk_tier, "items": [],
                 "independent_review": None, "final_ready": False,
                 "error": "registry has capabilities but produced no audit items"}
+    if "A10" in active:
+        a10_status, a10_detail = _a10_elicitation_complete(registry, elicitation)
+        items.append({"id": "A10", "cap_id": "*spec*", "status": a10_status, "detail": a10_detail})
     all_pass = all(i["status"] == "pass" for i in items)
     if risk_tier == "high":
         independent_review = {"required": True, "verdict": review_verdict}
@@ -244,9 +278,10 @@ def audit_spec(registry, *, tier=None, review_verdict=None, intent=None):
             "independent_review": independent_review, "final_ready": final_ready}
 
 
-def audit_spec_file(md_text, *, tier=None, review_verdict=None):
+def audit_spec_file(md_text, *, tier=None, review_verdict=None, elicitation=None):
     """End-to-end: parse intent (frontmatter), extract the registry (intake lock), run the
-    per-capability audit, add spec-level A1 (prose↔registry). final_ready requires A1 too."""
+    per-capability audit, add spec-level A1 (prose↔registry). final_ready requires A1 too.
+    `elicitation` forwards to A10 (see audit_spec) — the caller loads the artifacts from disk."""
     import sys, os, re
     sys.path.insert(0, os.path.expanduser("~/.claude/lib"))
     from spec_registry import extract_registry, a1_capability_complete
@@ -266,7 +301,8 @@ def audit_spec_file(md_text, *, tier=None, review_verdict=None):
                 "error": "intent:trivial-no-capability requires a non-empty reason"}
 
     registry = extract_registry(md_text)
-    result = audit_spec(registry, tier=tier, review_verdict=review_verdict, intent=intent)
+    result = audit_spec(registry, tier=tier, review_verdict=review_verdict, intent=intent,
+                        elicitation=elicitation)
     if intent == "trivial-no-capability" and reason:
         result["intent"] = intent
         result["reason"] = reason

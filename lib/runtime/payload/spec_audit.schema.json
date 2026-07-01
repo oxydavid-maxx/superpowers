@@ -5,6 +5,6 @@
   "spec_path":{"type":"string"},"spec_sha":{"type":"string"},
   "intent":{"enum":["trivial-no-capability"]},"reason":{"type":"string"},"error":{"type":"string"},
   "items":{"type":"array","items":{"type":"object","required":["id","cap_id","status"],
-    "properties":{"id":{"enum":["A1","A2","A3","A4","A5","A6","A7","A8","A9"]},"cap_id":{"type":"string"},
+    "properties":{"id":{"enum":["A1","A2","A3","A4","A5","A6","A7","A8","A9","A10"]},"cap_id":{"type":"string"},
       "status":{"enum":["pass","fail"]},"detail":{"type":"string"},"gap_questions":{"type":"array"}}}},
   "independent_review":{"type":["object","null"]},"final_ready":{"type":"boolean"}}}

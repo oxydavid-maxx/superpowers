@@ -5,6 +5,16 @@ sys.path.insert(0, str(Path.home() / ".claude" / "lib"))
 from spec_scaffold import scaffold
 
 
+def _full_elicitation_for(cap_id):
+    return {
+        "stakeholder_needs": [{"need_id": "N-1"}],
+        "material_unknowns": [{"id": "U-1", "status": "resolved"}],
+        "decision_log_text": "decided X because Y",
+        "mock_meta": {"material_final_spec_change": False, "mock_v2_na_reason": "no material change"},
+        "sota_records": [{"cap_id": cap_id, "sources": [{"name": "Gmail", "url": "https://gmail.com", "verdict": "adapt"}]}],
+    }
+
+
 def test_scaffold_emits_valid_json_with_required_slots():
     reg_json, sheet = scaffold([{"cap_id": "CAP-01", "type_tags": ["editable", "persists"]}])
     caps = json.loads(reg_json)                         # MUST be valid JSON (no // comments)
@@ -72,7 +82,8 @@ def test_filled_scaffold_passes_audit_by_construction():
     cap["state_data_contract"]["reload"] = "reopen shows the edit"
     cap["state_data_contract"]["invariant"] = "other fields untouched"
     cap["failure_modes"] = ["empty title shows an inline error"]
-    assert audit_spec([cap])["final_ready"] is True
+    cap["need_ids"] = ["N-1"]
+    assert audit_spec([cap], elicitation=_full_elicitation_for("CAP-01"))["final_ready"] is True
 
 
 def test_empty_scaffold_fails_audit():
@@ -98,9 +109,11 @@ def test_high_risk_scaffold_presence_by_construction_but_needs_review():
     cap["state_data_contract"]["idempotency"] = "re-running is a no-op"
     cap["state_data_contract"]["rollback"] = "migrate down restores the old schema"
     cap["failure_modes"] = ["a partial migration is rolled back automatically"]
+    cap["need_ids"] = ["N-1"]
+    elicitation = _full_elicitation_for("MIG-01")
     # every per-item check passes (presence-by-construction)...
-    items = audit_spec([cap])["items"]
+    items = audit_spec([cap], elicitation=elicitation)["items"]
     assert all(i["status"] == "pass" for i in items)
     # ...but high tier withholds final_ready until a review verdict (honest ceiling)
-    assert audit_spec([cap])["final_ready"] is False
-    assert audit_spec([cap], review_verdict="pass")["final_ready"] is True
+    assert audit_spec([cap], elicitation=elicitation)["final_ready"] is False
+    assert audit_spec([cap], review_verdict="pass", elicitation=elicitation)["final_ready"] is True
