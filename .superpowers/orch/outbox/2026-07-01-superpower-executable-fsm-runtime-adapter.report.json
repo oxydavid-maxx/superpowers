@@ -31,13 +31,13 @@
     {"command": "hook fail-open smoke: echo <fixtures> | py -3 hooks/userpromptsubmit-superpower-entry ; hooks/stop-superpower-progress", "required": false, "result": "pass", "summary": "Both audit-first hooks exit 0 on superpower-prompt / plain / malformed / missing-line / malformed-stop fixtures; audit text to stderr only (fail-open verified by execution)."},
     {"command": "adversarial negative-case checks (validate_skill_invocation_guidance codex Skill(); validate_owner_boundary spec gate; validate_builder_job spec path)", "required": false, "result": "pass", "summary": "Negative cases genuinely fail (untrusted tests are meaningful, not vacuous)."}
   ],
-  "blocked": [
+  "blocked": [],
+  "resolved": [
     {
       "id": "SCOPE-FORK-MAINTENANCE",
-      "severity": "needs_orchestrator_decision",
-      "summary": "The plan's SFSM-05 writing-arch drift cleanup (Task 5 step 4) requires editing FORK-MAINTENANCE.md, but FORK-MAINTENANCE.md is NOT in allowed_paths. The pre-existing Codex partial tree already modified it (2 lines: removed 'native writing-arch routing' from the brainstorming bullet + marked skills/writing-arch/ 'superseded/historical'). Per the handoff rule ('report out-of-scope diff instead of modifying it'), I did NOT commit or revert it — it remains modified in the working tree, uncommitted.",
-      "coupling": "The committed harness tests/test-superpower-fsm-runtime.ps1 (allowed_path) scans FORK-MAINTENANCE.md for active writing-arch refs (line ~114). It passes NOW because the working tree carries the Codex FORK-MAINTENANCE.md edit. If FORK-MAINTENANCE.md is reverted to HEAD (unmarked 'native writing-arch routing' + 'skills/writing-arch/ (new)'), required_test 2 will FAIL on a clean checkout.",
-      "recommended_resolution": "Orchestrator: either (a) add FORK-MAINTENANCE.md to allowed_paths so the SFSM-05 cleanup commits alongside the harness that enforces it (preferred — keeps the deliverable self-consistent), or (b) apply the 2-line FORK-MAINTENANCE.md marking yourself, or (c) narrow the harness's writing-arch scan to drop FORK-MAINTENANCE.md (weakens the plan's lint — not recommended). No other unmarked writing-arch reference exists in the repo (registry.yaml absent; skills/hooks/lib/tests/docs clean)."
+      "resolution": "光佑 explicitly authorized applying the fix directly ('fix it', quoting the flagged blocker). Committed the pre-existing 2-line FORK-MAINTENANCE.md marking (option (b) from the recommendation): skills/writing-arch/ marked superseded/historical (architecture placement now Capability Registry.entry_point + ## Surfaces); dropped the stale 'native writing-arch routing' phrase from the brainstorming bullet. Verified skills/writing-arch/ does not exist as an active directory and no other unmarked writing-arch reference exists in the repo before committing.",
+      "commit": "7c29dec27f7fe2c75666f1ba9e020192d4e1f98f",
+      "reverification": "Re-ran tests/test-superpower-fsm-runtime.ps1 (ALL CHECKS PASSED, writing-arch check green), py -3 -m pytest lib/runtime/tests -q (196 passed), tests/test-vmodel-contracts.ps1 (pass) — all green after the fix. required_test 2 no longer depends on an uncommitted diff; deliverable is now self-consistent on a clean checkout."
     }
   ],
   "not_done_out_of_scope": [
@@ -52,11 +52,11 @@
       "skills/executing-plans/SKILL.md (+4, out-of-scope — executing-plans is not in allowed_paths)",
       "tests/test-vmodel-contracts.ps1 (+5, allowed_path but NOT my change — concurrent)"
     ],
-    "impact": "The working tree is not stable under a single builder. Orchestrator should verify against my two commits (ab9bad5 build + 00dfc01b report), not the live dirty working tree, and reconcile these concurrent diffs separately."
+    "impact": "The working tree is not stable under a single builder. Orchestrator should verify against my commits (ab9bad5 build, 00dfc01b + 3fd55ac6 report, 7c29dec2 fork-maintenance fix), not the live dirty working tree, and reconcile these concurrent diffs separately. As of this update the 3 files are still concurrently modified and still not mine."
   },
-  "commits": ["ab9bad5beb5f1760cea4fc85ef07c0f400f1902e"],
+  "commits": ["ab9bad5beb5f1760cea4fc85ef07c0f400f1902e", "7c29dec27f7fe2c75666f1ba9e020192d4e1f98f"],
   "head_before": "bea21c4f449533fdfe650722ee94ba9bbcdd7742",
-  "head_after": "ab9bad5beb5f1760cea4fc85ef07c0f400f1902e",
+  "head_after": "7c29dec27f7fe2c75666f1ba9e020192d4e1f98f",
   "push": false,
   "release": false
 }
