@@ -168,6 +168,30 @@ print("repinned", version)
   Log "repinned Claude installed_plugins.json -> $ExpectedVersion ($sourceHead)"
 }
 
+# Every pin/repin run leaves a permanent .quarantine-superpowers-<ts> dir and (on the Claude
+# home) an installed_plugins.json.bak-<ts> / registry.yaml.bak-<ts>. Nothing ever pruned them
+# -- unbounded directory-listing/disk growth across repeated pins (2026-07-01 audit finding).
+# Keep only the $Keep most recent of each pattern (timestamp sorts lexically, so plain name
+# sort is chronological); delete the rest outright -- they are already a backup/quarantine
+# copy of state a newer pin has since superseded, so a second-order backup adds nothing.
+function Prune-Retention([string]$homeDir, [int]$keep = 3) {
+  $targets = @(
+    @{ Dir = (Join-Path $homeDir "plugins"); Filter = ".quarantine-superpowers-*" },
+    @{ Dir = (Join-Path $homeDir "plugins"); Filter = "installed_plugins.json.bak-*" },
+    @{ Dir = (Join-Path $homeDir "skills");  Filter = "registry.yaml.bak-*" }
+  )
+  foreach ($t in $targets) {
+    if (-not (Test-Path -LiteralPath $t.Dir)) { continue }
+    $items = Get-ChildItem -Path $t.Dir -Filter $t.Filter -Force -ErrorAction SilentlyContinue | Sort-Object Name
+    $stale = $items | Select-Object -SkipLast $keep
+    foreach ($s in $stale) {
+      if ($s.PSIsContainer) { Remove-Item -Recurse -Force -LiteralPath $s.FullName -ErrorAction SilentlyContinue }
+      else { Remove-Item -Force -LiteralPath $s.FullName -ErrorAction SilentlyContinue }
+      Log "pruned stale retention artifact -> $($s.FullName)"
+    }
+  }
+}
+
 function Repin-ClaudeSkillRegistry([string]$homeDir, [string]$activePath) {
   $registry = Join-Path $homeDir "skills\registry.yaml"
   if (-not (Test-Path -LiteralPath $registry)) { return }
@@ -194,6 +218,7 @@ $result.claude_active_path = $claudeActive
 Quarantine-Superpowers $ClaudeHome
 Repin-ClaudeManifest $ClaudeHome $claudeActive
 Repin-ClaudeSkillRegistry $ClaudeHome $claudeActive
+Prune-Retention $ClaudeHome
 
 # ---- Codex ----
 Log "pinning Codex home: $CodexHome"
@@ -202,6 +227,7 @@ $codexVersioned = Ensure-ForkCache $codexBase
 $codexActive = Set-CurrentPointer $codexBase $codexVersioned
 $result.codex_cache_path = $codexActive
 Quarantine-Superpowers $CodexHome
+Prune-Retention $CodexHome
 
 # ---- verify ----
 if (-not $SkipVerify) {
