@@ -45,6 +45,15 @@
     "package/plugin version + .codex-plugin + package.json NOT touched (forbidden_paths / stop_conditions).",
     "hooks/session-start + session-start-codex NOT modified (not in allowed_paths, though plan File Structure mentions them; allowed_paths governs)."
   ],
+  "concurrent_tree_modifications_observed": {
+    "summary": "During this S4 build, a CONCURRENT actor (Codex orchestrator or the ~/.claude auto-commit daemon) modified marketplace-repo files that were NOT in the starting tree and are NOT part of my work. Verified absent from my commit ab9bad5. I did not commit, revert, or otherwise touch them.",
+    "files": [
+      "docs/orch/builder-job.schema.json (+34/-3, out-of-scope)",
+      "skills/executing-plans/SKILL.md (+4, out-of-scope — executing-plans is not in allowed_paths)",
+      "tests/test-vmodel-contracts.ps1 (+5, allowed_path but NOT my change — concurrent)"
+    ],
+    "impact": "The working tree is not stable under a single builder. Orchestrator should verify against my two commits (ab9bad5 build + 00dfc01b report), not the live dirty working tree, and reconcile these concurrent diffs separately."
+  },
   "commits": ["ab9bad5beb5f1760cea4fc85ef07c0f400f1902e"],
   "head_before": "bea21c4f449533fdfe650722ee94ba9bbcdd7742",
   "head_after": "ab9bad5beb5f1760cea4fc85ef07c0f400f1902e",
