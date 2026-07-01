@@ -60,6 +60,11 @@ if (-not (Test-Path -LiteralPath $ackSchema)) {
 
 $job = Get-Content -Raw -LiteralPath $jobSchema
 Assert-Contains $job "builder_session" "builder job schema must require runtime-provided builder_session"
+Assert-Contains $job "claude_web" "builder job schema must require Claude web session handoff for external S4 builder"
+Assert-Contains $job "user_specified" "builder job schema must record that the builder session was user-specified"
+Assert-Contains $job "handoff_channel" "builder job schema must require explicit handoff channel"
+Assert-Contains $job "chrome" "builder job schema must require Chrome handoff for Claude web sessions"
+Assert-Contains $job "fallback_allowed" "builder job schema must explicitly forbid fallback substitution"
 if ($job -match "home-superpower") {
   throw "builder job schema must not hardcode home-superpower"
 }

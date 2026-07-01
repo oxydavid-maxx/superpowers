@@ -27,9 +27,37 @@
       "const": "phase-3-build"
     },
     "builder_session": {
-      "type": "string",
-      "minLength": 1,
-      "description": "Runtime-selected builder session id/name. Never hardcode a specific session in the skill."
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "session_name",
+        "user_specified",
+        "handoff_channel"
+      ],
+      "properties": {
+        "type": {
+          "const": "claude_web",
+          "description": "External S4 builder handoff must use the user-specified Claude web session, not Claude CLI."
+        },
+        "session_name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "User-specified Claude web session name, resolved by the orchestrator from the visible Claude Code UI."
+        },
+        "user_specified": {
+          "const": true
+        },
+        "handoff_channel": {
+          "const": "chrome",
+          "description": "The orchestrator must send the job through Chrome control to the named Claude web session."
+        },
+        "fallback_allowed": {
+          "const": false,
+          "description": "Do not substitute Claude CLI, a new session, or another named session when the requested session is absent or busy."
+        }
+      },
+      "description": "Runtime-selected builder session. The skill must not hardcode a specific session; when the user specifies one, S4 delegation must use that exact Claude web session."
     },
     "head_sha": {
       "type": "string",

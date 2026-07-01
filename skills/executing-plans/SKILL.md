@@ -13,6 +13,10 @@ Load plan, review critically, execute all tasks, report when complete.
 
 **Note:** Tell your human partner that Superpowers works much better with access to subagents. The quality of its work will be significantly higher if run on a platform with subagent support (Claude Code, Codex CLI, Codex App, Copilot CLI, and Gemini CLI all qualify; see the per-platform tool refs in `../using-superpowers/references/`). If subagents are available, use superpowers:subagent-driven-development instead of this skill.
 
+## External S4 Builder Contract
+
+When this skill is invoked by an orchestrator as `S4_BUILD`, execute only the local `jobs/*.json` received from the orchestrator. The job must name the user-specified Claude web session in `builder_session`; do not reinterpret the assignment as permission to switch to Claude CLI, create a new session, or use another session. If the job omits `builder_session`, points to a different session, or asks for forbidden files, stop and report the blocker in the outbox instead of implementing.
+
 ## The Process
 
 ### Step 1: Load and Review Plan
