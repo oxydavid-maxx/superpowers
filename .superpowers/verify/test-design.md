@@ -1,64 +1,80 @@
 # Verification test-design checklist
 # (PROJECTION of test-design.json — the JSON is the source of truth; do not hand-edit this file)
 
-## SPR-BUILD-06
-- acceptance.then: only S4_BUILD executor may become external after explicit confirmation
+## SFSM-01
+- acceptance.then: use superpower enters visible FSM before ad hoc execution
 - [ ] technique: BVA
 - [ ] technique: decision-table
 - [ ] technique: error-guessing
 - [ ] technique: pairwise
 - [ ] technique: use-case
 
-## SPR-CURRENT-04
-- acceptance.then: Claude and Codex active installs resolve through stable current pointers after pinning
+## SFSM-02
+- acceptance.then: two-pass design loop cannot skip SOTA before final spec
 - [ ] technique: BVA
 - [ ] technique: decision-table
 - [ ] technique: error-guessing
 - [ ] technique: pairwise
 - [ ] technique: use-case
 
-## SPR-ENTRY-01
-- acceptance.then: entry recap names S0 through S6, maps stages to skills, states current state/action, and uses natural language rather than boilerplate
+## SFSM-03
+- acceptance.then: verification-plan/test-design is required before implementation plan
 - [ ] technique: BVA
 - [ ] technique: decision-table
 - [ ] technique: error-guessing
 - [ ] technique: pairwise
 - [ ] technique: use-case
 
-## SPR-ENTRY-02
-- acceptance.then: entry behavior keeps the session in S0_DISCUSS until material unknowns are resolved
+## SFSM-04
+- acceptance.then: Codex guidance avoids nonexistent Skill callable while Claude keeps Skill tool
 - [ ] technique: BVA
 - [ ] technique: decision-table
 - [ ] technique: error-guessing
 - [ ] technique: pairwise
 - [ ] technique: use-case
 
-## SPR-FEEDBACK-07
-- acceptance.then: verification misses are recorded as structured checklist or archetype feedback and unresolved P2/P3 blocks signoff
+## SFSM-05
+- acceptance.then: active writing-arch references are absent or historical only
 - [ ] technique: BVA
 - [ ] technique: decision-table
 - [ ] technique: error-guessing
 - [ ] technique: pairwise
 - [ ] technique: use-case
 
-## SPR-FINISH-08
-- acceptance.then: completion claims require gate evidence and missing evidence forces blocked or partial wording
+## SFSM-06
+- acceptance.then: Claude builder can own implementation only after approved plan
 - [ ] technique: BVA
 - [ ] technique: decision-table
 - [ ] technique: error-guessing
 - [ ] technique: pairwise
 - [ ] technique: use-case
 
-## SPR-NOHARDPIN-05
-- acceptance.then: active registries fail verification when Superpower entries hard-pin versioned cache paths
+## SFSM-07
+- acceptance.then: prompt and gate behavior has deterministic regression coverage
 - [ ] technique: BVA
 - [ ] technique: decision-table
 - [ ] technique: error-guessing
 - [ ] technique: pairwise
 - [ ] technique: use-case
 
-## SPR-SKILLMAP-03
-- acceptance.then: each stage in the entry recap carries a named skill mapping or explicit conditional skill
+## SFSM-08
+- acceptance.then: substantial specs produce review artifacts or explicit N/A reason
+- [ ] technique: BVA
+- [ ] technique: decision-table
+- [ ] technique: error-guessing
+- [ ] technique: pairwise
+- [ ] technique: use-case
+
+## SFSM-09
+- acceptance.then: all user-raised issues have durable multidimensional elicitation coverage
+- [ ] technique: BVA
+- [ ] technique: decision-table
+- [ ] technique: error-guessing
+- [ ] technique: pairwise
+- [ ] technique: use-case
+
+## SFSM-10
+- acceptance.then: pause and transition responses include compact progress line
 - [ ] technique: BVA
 - [ ] technique: decision-table
 - [ ] technique: error-guessing

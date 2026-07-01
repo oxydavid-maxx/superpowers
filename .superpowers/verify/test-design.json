@@ -1,30 +1,34 @@
 {
   "schema_version": 1,
-  "spec_path": "docs/superpowers/specs/2026-06-30-superpower-entry-runtime-reliability-design.md",
+  "spec_path": "C:\\Users\\User\\.claude\\docs\\superpowers\\specs\\2026-06-30-superpower-executable-fsm-runtime-adapter-design.md",
+  "run_id": "2026-07-01-superpower-executable-fsm-runtime-adapter",
+  "run_root": "C:\\Users\\User\\.claude\\superpowers\\runs\\2026-07-01-superpower-executable-fsm-runtime-adapter",
   "mock_artifacts": [
-    "docs/superpowers/mocks/2026-06-30-superpower-entry-runtime-reliability/mock-v1-stage-order.md"
+    "C:\\Users\\User\\.claude\\superpowers\\runs\\2026-07-01-superpower-executable-fsm-runtime-adapter\\expected-flow.png",
+    "C:\\Users\\User\\.claude\\superpowers\\runs\\2026-07-01-superpower-executable-fsm-runtime-adapter\\expected-flow.svg",
+    "C:\\Users\\User\\.claude\\superpowers\\runs\\2026-07-01-superpower-executable-fsm-runtime-adapter\\review-site\\index.html"
   ],
   "independent": true,
-  "verifier": "current session",
-  "builder": "Claude Code S4_BUILD executor",
+  "verifier": "current Codex session / orchestrator",
+  "builder": "Claude Code S4_BUILD executor, session to be selected before S4",
   "builder_boundary": "External builder may only own S4_BUILD after S3 implementation plan; it may not edit spec, verification plan, verifier, release, or push authority files.",
   "skill_ui_human_available": true,
   "verify_arch": {
     "required": true,
-    "reason": "Spec declares multiple surfaces: superpower-skill-entry, install-runtime, verification-runtime."
+    "reason": "Spec declares multiple surfaces: skills, hooks/API, local orch handoff, tests, file artifacts, message disclosure."
   },
   "verify_spec": {
     "required": true
   },
   "registry": [
     {
-      "cap_id": "SPR-ENTRY-01",
-      "entry_point": "superpower-skill-entry",
-      "entry_type": "process",
+      "cap_id": "SFSM-01",
+      "entry_point": "using-superpowers skill",
+      "entry_type": "library",
       "risk": {
-        "entry_type": "process",
+        "entry_type": "library",
         "tags": [
-          "process"
+          "workflow"
         ],
         "multi_component": true,
         "silent": true,
@@ -32,13 +36,13 @@
       }
     },
     {
-      "cap_id": "SPR-ENTRY-02",
-      "entry_point": "superpower-skill-entry",
-      "entry_type": "process",
+      "cap_id": "SFSM-02",
+      "entry_point": "R-PIPE spec gate",
+      "entry_type": "API",
       "risk": {
-        "entry_type": "process",
+        "entry_type": "API",
         "tags": [
-          "process"
+          "workflow"
         ],
         "multi_component": true,
         "silent": true,
@@ -46,13 +50,13 @@
       }
     },
     {
-      "cap_id": "SPR-SKILLMAP-03",
-      "entry_point": "superpower-skill-entry",
-      "entry_type": "process",
+      "cap_id": "SFSM-03",
+      "entry_point": "R-PIPE plan gate",
+      "entry_type": "API",
       "risk": {
-        "entry_type": "process",
+        "entry_type": "API",
         "tags": [
-          "process"
+          "verification"
         ],
         "multi_component": true,
         "silent": true,
@@ -60,13 +64,55 @@
       }
     },
     {
-      "cap_id": "SPR-CURRENT-04",
-      "entry_point": "install-runtime",
+      "cap_id": "SFSM-04",
+      "entry_point": "runtime skill surface hooks",
+      "entry_type": "API",
+      "risk": {
+        "entry_type": "API",
+        "tags": [
+          "runtime"
+        ],
+        "multi_component": true,
+        "silent": true,
+        "inputs": 3
+      }
+    },
+    {
+      "cap_id": "SFSM-05",
+      "entry_point": "fork maintenance docs",
+      "entry_type": "library",
+      "risk": {
+        "entry_type": "library",
+        "tags": [
+          "consistency"
+        ],
+        "multi_component": true,
+        "silent": true,
+        "inputs": 3
+      }
+    },
+    {
+      "cap_id": "SFSM-06",
+      "entry_point": "local orch job/outbox",
+      "entry_type": "API",
+      "risk": {
+        "entry_type": "API",
+        "tags": [
+          "orchestration"
+        ],
+        "multi_component": true,
+        "silent": true,
+        "inputs": 3
+      }
+    },
+    {
+      "cap_id": "SFSM-07",
+      "entry_point": "tests",
       "entry_type": "CLI",
       "risk": {
         "entry_type": "CLI",
         "tags": [
-          "cli"
+          "testing"
         ],
         "multi_component": true,
         "silent": true,
@@ -74,13 +120,13 @@
       }
     },
     {
-      "cap_id": "SPR-NOHARDPIN-05",
-      "entry_point": "install-runtime",
-      "entry_type": "CLI",
+      "cap_id": "SFSM-08",
+      "entry_point": "visual review artifacts",
+      "entry_type": "file",
       "risk": {
-        "entry_type": "CLI",
+        "entry_type": "file",
         "tags": [
-          "cli"
+          "reviewability"
         ],
         "multi_component": true,
         "silent": true,
@@ -88,13 +134,13 @@
       }
     },
     {
-      "cap_id": "SPR-BUILD-06",
-      "entry_point": "superpower-skill-entry",
-      "entry_type": "process",
+      "cap_id": "SFSM-09",
+      "entry_point": "issue coverage artifacts",
+      "entry_type": "file",
       "risk": {
-        "entry_type": "process",
+        "entry_type": "file",
         "tags": [
-          "process"
+          "stakeholder-elicitation"
         ],
         "multi_component": true,
         "silent": true,
@@ -102,27 +148,13 @@
       }
     },
     {
-      "cap_id": "SPR-FEEDBACK-07",
-      "entry_point": "verification-runtime",
-      "entry_type": "CLI",
+      "cap_id": "SFSM-10",
+      "entry_point": "gate progress disclosure",
+      "entry_type": "message",
       "risk": {
-        "entry_type": "CLI",
+        "entry_type": "message",
         "tags": [
-          "cli"
-        ],
-        "multi_component": true,
-        "silent": true,
-        "inputs": 3
-      }
-    },
-    {
-      "cap_id": "SPR-FINISH-08",
-      "entry_point": "verification-runtime",
-      "entry_type": "CLI",
-      "risk": {
-        "entry_type": "CLI",
-        "tags": [
-          "cli"
+          "observability"
         ],
         "multi_component": true,
         "silent": true,
@@ -132,9 +164,9 @@
   ],
   "capabilities": [
     {
-      "cap_id": "SPR-ENTRY-01",
+      "cap_id": "SFSM-01",
       "acceptance": {
-        "then": "entry recap names S0 through S6, maps stages to skills, states current state/action, and uses natural language rather than boilerplate"
+        "then": "use superpower enters visible FSM before ad hoc execution"
       },
       "techniques": [
         "BVA",
@@ -145,9 +177,9 @@
       ]
     },
     {
-      "cap_id": "SPR-ENTRY-02",
+      "cap_id": "SFSM-02",
       "acceptance": {
-        "then": "entry behavior keeps the session in S0_DISCUSS until material unknowns are resolved"
+        "then": "two-pass design loop cannot skip SOTA before final spec"
       },
       "techniques": [
         "BVA",
@@ -158,9 +190,9 @@
       ]
     },
     {
-      "cap_id": "SPR-SKILLMAP-03",
+      "cap_id": "SFSM-03",
       "acceptance": {
-        "then": "each stage in the entry recap carries a named skill mapping or explicit conditional skill"
+        "then": "verification-plan/test-design is required before implementation plan"
       },
       "techniques": [
         "BVA",
@@ -171,9 +203,9 @@
       ]
     },
     {
-      "cap_id": "SPR-CURRENT-04",
+      "cap_id": "SFSM-04",
       "acceptance": {
-        "then": "Claude and Codex active installs resolve through stable current pointers after pinning"
+        "then": "Codex guidance avoids nonexistent Skill callable while Claude keeps Skill tool"
       },
       "techniques": [
         "BVA",
@@ -184,9 +216,9 @@
       ]
     },
     {
-      "cap_id": "SPR-NOHARDPIN-05",
+      "cap_id": "SFSM-05",
       "acceptance": {
-        "then": "active registries fail verification when Superpower entries hard-pin versioned cache paths"
+        "then": "active writing-arch references are absent or historical only"
       },
       "techniques": [
         "BVA",
@@ -197,9 +229,9 @@
       ]
     },
     {
-      "cap_id": "SPR-BUILD-06",
+      "cap_id": "SFSM-06",
       "acceptance": {
-        "then": "only S4_BUILD executor may become external after explicit confirmation"
+        "then": "Claude builder can own implementation only after approved plan"
       },
       "techniques": [
         "BVA",
@@ -210,9 +242,9 @@
       ]
     },
     {
-      "cap_id": "SPR-FEEDBACK-07",
+      "cap_id": "SFSM-07",
       "acceptance": {
-        "then": "verification misses are recorded as structured checklist or archetype feedback and unresolved P2/P3 blocks signoff"
+        "then": "prompt and gate behavior has deterministic regression coverage"
       },
       "techniques": [
         "BVA",
@@ -223,9 +255,35 @@
       ]
     },
     {
-      "cap_id": "SPR-FINISH-08",
+      "cap_id": "SFSM-08",
       "acceptance": {
-        "then": "completion claims require gate evidence and missing evidence forces blocked or partial wording"
+        "then": "substantial specs produce review artifacts or explicit N/A reason"
+      },
+      "techniques": [
+        "BVA",
+        "decision-table",
+        "error-guessing",
+        "pairwise",
+        "use-case"
+      ]
+    },
+    {
+      "cap_id": "SFSM-09",
+      "acceptance": {
+        "then": "all user-raised issues have durable multidimensional elicitation coverage"
+      },
+      "techniques": [
+        "BVA",
+        "decision-table",
+        "error-guessing",
+        "pairwise",
+        "use-case"
+      ]
+    },
+    {
+      "cap_id": "SFSM-10",
+      "acceptance": {
+        "then": "pause and transition responses include compact progress line"
       },
       "techniques": [
         "BVA",
@@ -238,628 +296,844 @@
   ],
   "cases": [
     {
-      "case_id": "SPR-ENTRY-01-happy",
-      "cap_id": "SPR-ENTRY-01",
-      "entry_point": "superpower-skill-entry",
-      "entry_type": "process",
+      "case_id": "SFSM-01-happy",
+      "cap_id": "SFSM-01",
+      "entry_point": "using-superpowers skill",
+      "entry_type": "library",
       "category": "happy",
       "technique": "use-case",
-      "given": "SPR-ENTRY-01 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the happy condition for superpower-skill-entry",
-      "then": "the nominal approved Superpower path reaches the declared outcome: entry recap names S0 through S6, maps stages to skills, states current state/action, and uses natural language rather than boilerplate",
-      "executor": "skill-pressure-scenario",
-      "evidence_policy": "manual_live_qa"
+      "given": "SFSM-01 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the happy condition for using-superpowers skill",
+      "then": "the nominal path delivers the declared outcome: use superpower enters visible FSM before ad hoc execution",
+      "executor": "pytest+golden-prompt",
+      "evidence_policy": "manual_live_qa",
+      "regression_home": "tests/superpower_fsm/test_sfsm_01.py"
     },
     {
-      "case_id": "SPR-ENTRY-01-boundary",
-      "cap_id": "SPR-ENTRY-01",
-      "entry_point": "superpower-skill-entry",
-      "entry_type": "process",
+      "case_id": "SFSM-01-boundary",
+      "cap_id": "SFSM-01",
+      "entry_point": "using-superpowers skill",
+      "entry_type": "library",
       "category": "boundary",
       "technique": "BVA",
-      "given": "SPR-ENTRY-01 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the boundary condition for superpower-skill-entry",
-      "then": "the smallest valid input and largest expected stage list still produce the declared outcome: entry recap names S0 through S6, maps stages to skills, states current state/action, and uses natural language rather than boilerplate",
-      "executor": "skill-pressure-scenario",
-      "evidence_policy": "manual_live_qa"
+      "given": "SFSM-01 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the boundary condition for using-superpowers skill",
+      "then": "the smallest valid prompt and the full remaining gate list still deliver the declared outcome: use superpower enters visible FSM before ad hoc execution",
+      "executor": "pytest+golden-prompt",
+      "evidence_policy": "manual_live_qa",
+      "regression_home": "tests/superpower_fsm/test_sfsm_01.py"
     },
     {
-      "case_id": "SPR-ENTRY-01-negative",
-      "cap_id": "SPR-ENTRY-01",
-      "entry_point": "superpower-skill-entry",
-      "entry_type": "process",
+      "case_id": "SFSM-01-negative",
+      "cap_id": "SFSM-01",
+      "entry_point": "using-superpowers skill",
+      "entry_type": "library",
       "category": "negative",
       "technique": "decision-table",
-      "given": "SPR-ENTRY-01 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the negative condition for superpower-skill-entry",
-      "then": "invalid or premature action is rejected with the declared blocking behavior: entry recap names S0 through S6, maps stages to skills, states current state/action, and uses natural language rather than boilerplate",
-      "executor": "skill-pressure-scenario",
-      "evidence_policy": "manual_live_qa"
+      "given": "SFSM-01 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the negative condition for using-superpowers skill",
+      "then": "premature or incomplete action is blocked instead of silently advancing: use superpower enters visible FSM before ad hoc execution",
+      "executor": "pytest+golden-prompt",
+      "evidence_policy": "manual_live_qa",
+      "regression_home": "tests/superpower_fsm/test_sfsm_01.py"
     },
     {
-      "case_id": "SPR-ENTRY-01-integration",
-      "cap_id": "SPR-ENTRY-01",
-      "entry_point": "superpower-skill-entry",
-      "entry_type": "process",
+      "case_id": "SFSM-01-integration",
+      "cap_id": "SFSM-01",
+      "entry_point": "using-superpowers skill",
+      "entry_type": "library",
       "category": "integration",
       "technique": "use-case",
-      "given": "SPR-ENTRY-01 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the integration condition for superpower-skill-entry",
-      "then": "the declared surface and its adjacent runtime artifact cooperate to produce the declared outcome: entry recap names S0 through S6, maps stages to skills, states current state/action, and uses natural language rather than boilerplate",
-      "executor": "skill-pressure-scenario",
-      "evidence_policy": "manual_live_qa"
+      "given": "SFSM-01 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the integration condition for using-superpowers skill",
+      "then": "the declared surface and adjacent hook/artifact cooperate to deliver the outcome: use superpower enters visible FSM before ad hoc execution",
+      "executor": "pytest+golden-prompt",
+      "evidence_policy": "manual_live_qa",
+      "regression_home": "tests/superpower_fsm/test_sfsm_01.py"
     },
     {
-      "case_id": "SPR-ENTRY-01-corner",
-      "cap_id": "SPR-ENTRY-01",
-      "entry_point": "superpower-skill-entry",
-      "entry_type": "process",
+      "case_id": "SFSM-01-corner",
+      "cap_id": "SFSM-01",
+      "entry_point": "using-superpowers skill",
+      "entry_type": "library",
       "category": "corner",
       "technique": "pairwise",
-      "given": "SPR-ENTRY-01 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the corner condition for superpower-skill-entry",
-      "then": "combined edge inputs still preserve the declared outcome without weakening gates: entry recap names S0 through S6, maps stages to skills, states current state/action, and uses natural language rather than boilerplate",
-      "executor": "skill-pressure-scenario",
-      "evidence_policy": "manual_live_qa"
+      "given": "SFSM-01 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the corner condition for using-superpowers skill",
+      "then": "combined runtime, delegation, and gate-state variations preserve the outcome: use superpower enters visible FSM before ad hoc execution",
+      "executor": "pytest+golden-prompt",
+      "evidence_policy": "manual_live_qa",
+      "regression_home": "tests/superpower_fsm/test_sfsm_01.py"
     },
     {
-      "case_id": "SPR-ENTRY-01-error-guessing",
-      "cap_id": "SPR-ENTRY-01",
-      "entry_point": "superpower-skill-entry",
-      "entry_type": "process",
+      "case_id": "SFSM-01-error-guessing",
+      "cap_id": "SFSM-01",
+      "entry_point": "using-superpowers skill",
+      "entry_type": "library",
       "category": "error-guessing",
       "technique": "error-guessing",
-      "given": "SPR-ENTRY-01 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the error-guessing condition for superpower-skill-entry",
-      "then": "a known failure pattern is actively targeted and the declared guard catches it: entry recap names S0 through S6, maps stages to skills, states current state/action, and uses natural language rather than boilerplate",
-      "executor": "skill-pressure-scenario",
-      "evidence_policy": "manual_live_qa"
+      "given": "SFSM-01 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the error-guessing condition for using-superpowers skill",
+      "then": "a known failure pattern is targeted and caught by the guard: use superpower enters visible FSM before ad hoc execution",
+      "executor": "pytest+golden-prompt",
+      "evidence_policy": "manual_live_qa",
+      "regression_home": "tests/superpower_fsm/test_sfsm_01.py"
     },
     {
-      "case_id": "SPR-ENTRY-02-happy",
-      "cap_id": "SPR-ENTRY-02",
-      "entry_point": "superpower-skill-entry",
-      "entry_type": "process",
+      "case_id": "SFSM-02-happy",
+      "cap_id": "SFSM-02",
+      "entry_point": "R-PIPE spec gate",
+      "entry_type": "API",
       "category": "happy",
       "technique": "use-case",
-      "given": "SPR-ENTRY-02 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the happy condition for superpower-skill-entry",
-      "then": "the nominal approved Superpower path reaches the declared outcome: entry behavior keeps the session in S0_DISCUSS until material unknowns are resolved",
-      "executor": "skill-pressure-scenario",
-      "evidence_policy": "manual_live_qa"
+      "given": "SFSM-02 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the happy condition for R-PIPE spec gate",
+      "then": "the nominal path delivers the declared outcome: two-pass design loop cannot skip SOTA before final spec",
+      "executor": "pytest+hook-fixture",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_02.py"
     },
     {
-      "case_id": "SPR-ENTRY-02-boundary",
-      "cap_id": "SPR-ENTRY-02",
-      "entry_point": "superpower-skill-entry",
-      "entry_type": "process",
+      "case_id": "SFSM-02-boundary",
+      "cap_id": "SFSM-02",
+      "entry_point": "R-PIPE spec gate",
+      "entry_type": "API",
       "category": "boundary",
       "technique": "BVA",
-      "given": "SPR-ENTRY-02 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the boundary condition for superpower-skill-entry",
-      "then": "the smallest valid input and largest expected stage list still produce the declared outcome: entry behavior keeps the session in S0_DISCUSS until material unknowns are resolved",
-      "executor": "skill-pressure-scenario",
-      "evidence_policy": "manual_live_qa"
+      "given": "SFSM-02 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the boundary condition for R-PIPE spec gate",
+      "then": "the smallest valid prompt and the full remaining gate list still deliver the declared outcome: two-pass design loop cannot skip SOTA before final spec",
+      "executor": "pytest+hook-fixture",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_02.py"
     },
     {
-      "case_id": "SPR-ENTRY-02-negative",
-      "cap_id": "SPR-ENTRY-02",
-      "entry_point": "superpower-skill-entry",
-      "entry_type": "process",
+      "case_id": "SFSM-02-negative",
+      "cap_id": "SFSM-02",
+      "entry_point": "R-PIPE spec gate",
+      "entry_type": "API",
       "category": "negative",
       "technique": "decision-table",
-      "given": "SPR-ENTRY-02 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the negative condition for superpower-skill-entry",
-      "then": "invalid or premature action is rejected with the declared blocking behavior: entry behavior keeps the session in S0_DISCUSS until material unknowns are resolved",
-      "executor": "skill-pressure-scenario",
-      "evidence_policy": "manual_live_qa"
+      "given": "SFSM-02 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the negative condition for R-PIPE spec gate",
+      "then": "premature or incomplete action is blocked instead of silently advancing: two-pass design loop cannot skip SOTA before final spec",
+      "executor": "pytest+hook-fixture",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_02.py"
     },
     {
-      "case_id": "SPR-ENTRY-02-integration",
-      "cap_id": "SPR-ENTRY-02",
-      "entry_point": "superpower-skill-entry",
-      "entry_type": "process",
+      "case_id": "SFSM-02-integration",
+      "cap_id": "SFSM-02",
+      "entry_point": "R-PIPE spec gate",
+      "entry_type": "API",
       "category": "integration",
       "technique": "use-case",
-      "given": "SPR-ENTRY-02 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the integration condition for superpower-skill-entry",
-      "then": "the declared surface and its adjacent runtime artifact cooperate to produce the declared outcome: entry behavior keeps the session in S0_DISCUSS until material unknowns are resolved",
-      "executor": "skill-pressure-scenario",
-      "evidence_policy": "manual_live_qa"
+      "given": "SFSM-02 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the integration condition for R-PIPE spec gate",
+      "then": "the declared surface and adjacent hook/artifact cooperate to deliver the outcome: two-pass design loop cannot skip SOTA before final spec",
+      "executor": "pytest+hook-fixture",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_02.py"
     },
     {
-      "case_id": "SPR-ENTRY-02-corner",
-      "cap_id": "SPR-ENTRY-02",
-      "entry_point": "superpower-skill-entry",
-      "entry_type": "process",
+      "case_id": "SFSM-02-corner",
+      "cap_id": "SFSM-02",
+      "entry_point": "R-PIPE spec gate",
+      "entry_type": "API",
       "category": "corner",
       "technique": "pairwise",
-      "given": "SPR-ENTRY-02 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the corner condition for superpower-skill-entry",
-      "then": "combined edge inputs still preserve the declared outcome without weakening gates: entry behavior keeps the session in S0_DISCUSS until material unknowns are resolved",
-      "executor": "skill-pressure-scenario",
-      "evidence_policy": "manual_live_qa"
+      "given": "SFSM-02 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the corner condition for R-PIPE spec gate",
+      "then": "combined runtime, delegation, and gate-state variations preserve the outcome: two-pass design loop cannot skip SOTA before final spec",
+      "executor": "pytest+hook-fixture",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_02.py"
     },
     {
-      "case_id": "SPR-ENTRY-02-error-guessing",
-      "cap_id": "SPR-ENTRY-02",
-      "entry_point": "superpower-skill-entry",
-      "entry_type": "process",
+      "case_id": "SFSM-02-error-guessing",
+      "cap_id": "SFSM-02",
+      "entry_point": "R-PIPE spec gate",
+      "entry_type": "API",
       "category": "error-guessing",
       "technique": "error-guessing",
-      "given": "SPR-ENTRY-02 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the error-guessing condition for superpower-skill-entry",
-      "then": "a known failure pattern is actively targeted and the declared guard catches it: entry behavior keeps the session in S0_DISCUSS until material unknowns are resolved",
-      "executor": "skill-pressure-scenario",
-      "evidence_policy": "manual_live_qa"
+      "given": "SFSM-02 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the error-guessing condition for R-PIPE spec gate",
+      "then": "a known failure pattern is targeted and caught by the guard: two-pass design loop cannot skip SOTA before final spec",
+      "executor": "pytest+hook-fixture",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_02.py"
     },
     {
-      "case_id": "SPR-SKILLMAP-03-happy",
-      "cap_id": "SPR-SKILLMAP-03",
-      "entry_point": "superpower-skill-entry",
-      "entry_type": "process",
+      "case_id": "SFSM-03-happy",
+      "cap_id": "SFSM-03",
+      "entry_point": "R-PIPE plan gate",
+      "entry_type": "API",
       "category": "happy",
       "technique": "use-case",
-      "given": "SPR-SKILLMAP-03 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the happy condition for superpower-skill-entry",
-      "then": "the nominal approved Superpower path reaches the declared outcome: each stage in the entry recap carries a named skill mapping or explicit conditional skill",
-      "executor": "skill-pressure-scenario",
-      "evidence_policy": "manual_live_qa"
+      "given": "SFSM-03 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the happy condition for R-PIPE plan gate",
+      "then": "the nominal path delivers the declared outcome: verification-plan/test-design is required before implementation plan",
+      "executor": "pytest+hook-fixture",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_03.py"
     },
     {
-      "case_id": "SPR-SKILLMAP-03-boundary",
-      "cap_id": "SPR-SKILLMAP-03",
-      "entry_point": "superpower-skill-entry",
-      "entry_type": "process",
+      "case_id": "SFSM-03-boundary",
+      "cap_id": "SFSM-03",
+      "entry_point": "R-PIPE plan gate",
+      "entry_type": "API",
       "category": "boundary",
       "technique": "BVA",
-      "given": "SPR-SKILLMAP-03 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the boundary condition for superpower-skill-entry",
-      "then": "the smallest valid input and largest expected stage list still produce the declared outcome: each stage in the entry recap carries a named skill mapping or explicit conditional skill",
-      "executor": "skill-pressure-scenario",
-      "evidence_policy": "manual_live_qa"
+      "given": "SFSM-03 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the boundary condition for R-PIPE plan gate",
+      "then": "the smallest valid prompt and the full remaining gate list still deliver the declared outcome: verification-plan/test-design is required before implementation plan",
+      "executor": "pytest+hook-fixture",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_03.py"
     },
     {
-      "case_id": "SPR-SKILLMAP-03-negative",
-      "cap_id": "SPR-SKILLMAP-03",
-      "entry_point": "superpower-skill-entry",
-      "entry_type": "process",
+      "case_id": "SFSM-03-negative",
+      "cap_id": "SFSM-03",
+      "entry_point": "R-PIPE plan gate",
+      "entry_type": "API",
       "category": "negative",
       "technique": "decision-table",
-      "given": "SPR-SKILLMAP-03 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the negative condition for superpower-skill-entry",
-      "then": "invalid or premature action is rejected with the declared blocking behavior: each stage in the entry recap carries a named skill mapping or explicit conditional skill",
-      "executor": "skill-pressure-scenario",
-      "evidence_policy": "manual_live_qa"
+      "given": "SFSM-03 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the negative condition for R-PIPE plan gate",
+      "then": "premature or incomplete action is blocked instead of silently advancing: verification-plan/test-design is required before implementation plan",
+      "executor": "pytest+hook-fixture",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_03.py"
     },
     {
-      "case_id": "SPR-SKILLMAP-03-integration",
-      "cap_id": "SPR-SKILLMAP-03",
-      "entry_point": "superpower-skill-entry",
-      "entry_type": "process",
+      "case_id": "SFSM-03-integration",
+      "cap_id": "SFSM-03",
+      "entry_point": "R-PIPE plan gate",
+      "entry_type": "API",
       "category": "integration",
       "technique": "use-case",
-      "given": "SPR-SKILLMAP-03 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the integration condition for superpower-skill-entry",
-      "then": "the declared surface and its adjacent runtime artifact cooperate to produce the declared outcome: each stage in the entry recap carries a named skill mapping or explicit conditional skill",
-      "executor": "skill-pressure-scenario",
-      "evidence_policy": "manual_live_qa"
+      "given": "SFSM-03 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the integration condition for R-PIPE plan gate",
+      "then": "the declared surface and adjacent hook/artifact cooperate to deliver the outcome: verification-plan/test-design is required before implementation plan",
+      "executor": "pytest+hook-fixture",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_03.py"
     },
     {
-      "case_id": "SPR-SKILLMAP-03-corner",
-      "cap_id": "SPR-SKILLMAP-03",
-      "entry_point": "superpower-skill-entry",
-      "entry_type": "process",
+      "case_id": "SFSM-03-corner",
+      "cap_id": "SFSM-03",
+      "entry_point": "R-PIPE plan gate",
+      "entry_type": "API",
       "category": "corner",
       "technique": "pairwise",
-      "given": "SPR-SKILLMAP-03 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the corner condition for superpower-skill-entry",
-      "then": "combined edge inputs still preserve the declared outcome without weakening gates: each stage in the entry recap carries a named skill mapping or explicit conditional skill",
-      "executor": "skill-pressure-scenario",
-      "evidence_policy": "manual_live_qa"
+      "given": "SFSM-03 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the corner condition for R-PIPE plan gate",
+      "then": "combined runtime, delegation, and gate-state variations preserve the outcome: verification-plan/test-design is required before implementation plan",
+      "executor": "pytest+hook-fixture",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_03.py"
     },
     {
-      "case_id": "SPR-SKILLMAP-03-error-guessing",
-      "cap_id": "SPR-SKILLMAP-03",
-      "entry_point": "superpower-skill-entry",
-      "entry_type": "process",
+      "case_id": "SFSM-03-error-guessing",
+      "cap_id": "SFSM-03",
+      "entry_point": "R-PIPE plan gate",
+      "entry_type": "API",
       "category": "error-guessing",
       "technique": "error-guessing",
-      "given": "SPR-SKILLMAP-03 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the error-guessing condition for superpower-skill-entry",
-      "then": "a known failure pattern is actively targeted and the declared guard catches it: each stage in the entry recap carries a named skill mapping or explicit conditional skill",
-      "executor": "skill-pressure-scenario",
-      "evidence_policy": "manual_live_qa"
+      "given": "SFSM-03 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the error-guessing condition for R-PIPE plan gate",
+      "then": "a known failure pattern is targeted and caught by the guard: verification-plan/test-design is required before implementation plan",
+      "executor": "pytest+hook-fixture",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_03.py"
     },
     {
-      "case_id": "SPR-CURRENT-04-happy",
-      "cap_id": "SPR-CURRENT-04",
-      "entry_point": "install-runtime",
-      "entry_type": "CLI",
+      "case_id": "SFSM-04-happy",
+      "cap_id": "SFSM-04",
+      "entry_point": "runtime skill surface hooks",
+      "entry_type": "API",
       "category": "happy",
       "technique": "use-case",
-      "given": "SPR-CURRENT-04 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the happy condition for install-runtime",
-      "then": "the nominal approved Superpower path reaches the declared outcome: Claude and Codex active installs resolve through stable current pointers after pinning",
-      "executor": "pytest",
-      "evidence_policy": "automated_regression"
+      "given": "SFSM-04 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the happy condition for runtime skill surface hooks",
+      "then": "the nominal path delivers the declared outcome: Codex guidance avoids nonexistent Skill callable while Claude keeps Skill tool",
+      "executor": "pytest+hook-fixture",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_04.py"
     },
     {
-      "case_id": "SPR-CURRENT-04-boundary",
-      "cap_id": "SPR-CURRENT-04",
-      "entry_point": "install-runtime",
-      "entry_type": "CLI",
+      "case_id": "SFSM-04-boundary",
+      "cap_id": "SFSM-04",
+      "entry_point": "runtime skill surface hooks",
+      "entry_type": "API",
       "category": "boundary",
       "technique": "BVA",
-      "given": "SPR-CURRENT-04 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the boundary condition for install-runtime",
-      "then": "the smallest valid input and largest expected stage list still produce the declared outcome: Claude and Codex active installs resolve through stable current pointers after pinning",
-      "executor": "pytest",
-      "evidence_policy": "automated_regression"
+      "given": "SFSM-04 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the boundary condition for runtime skill surface hooks",
+      "then": "the smallest valid prompt and the full remaining gate list still deliver the declared outcome: Codex guidance avoids nonexistent Skill callable while Claude keeps Skill tool",
+      "executor": "pytest+hook-fixture",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_04.py"
     },
     {
-      "case_id": "SPR-CURRENT-04-negative",
-      "cap_id": "SPR-CURRENT-04",
-      "entry_point": "install-runtime",
-      "entry_type": "CLI",
+      "case_id": "SFSM-04-negative",
+      "cap_id": "SFSM-04",
+      "entry_point": "runtime skill surface hooks",
+      "entry_type": "API",
       "category": "negative",
       "technique": "decision-table",
-      "given": "SPR-CURRENT-04 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the negative condition for install-runtime",
-      "then": "invalid or premature action is rejected with the declared blocking behavior: Claude and Codex active installs resolve through stable current pointers after pinning",
-      "executor": "pytest",
-      "evidence_policy": "automated_regression"
+      "given": "SFSM-04 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the negative condition for runtime skill surface hooks",
+      "then": "premature or incomplete action is blocked instead of silently advancing: Codex guidance avoids nonexistent Skill callable while Claude keeps Skill tool",
+      "executor": "pytest+hook-fixture",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_04.py"
     },
     {
-      "case_id": "SPR-CURRENT-04-integration",
-      "cap_id": "SPR-CURRENT-04",
-      "entry_point": "install-runtime",
-      "entry_type": "CLI",
+      "case_id": "SFSM-04-integration",
+      "cap_id": "SFSM-04",
+      "entry_point": "runtime skill surface hooks",
+      "entry_type": "API",
       "category": "integration",
       "technique": "use-case",
-      "given": "SPR-CURRENT-04 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the integration condition for install-runtime",
-      "then": "the declared surface and its adjacent runtime artifact cooperate to produce the declared outcome: Claude and Codex active installs resolve through stable current pointers after pinning",
-      "executor": "pytest",
-      "evidence_policy": "automated_regression"
+      "given": "SFSM-04 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the integration condition for runtime skill surface hooks",
+      "then": "the declared surface and adjacent hook/artifact cooperate to deliver the outcome: Codex guidance avoids nonexistent Skill callable while Claude keeps Skill tool",
+      "executor": "pytest+hook-fixture",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_04.py"
     },
     {
-      "case_id": "SPR-CURRENT-04-corner",
-      "cap_id": "SPR-CURRENT-04",
-      "entry_point": "install-runtime",
-      "entry_type": "CLI",
+      "case_id": "SFSM-04-corner",
+      "cap_id": "SFSM-04",
+      "entry_point": "runtime skill surface hooks",
+      "entry_type": "API",
       "category": "corner",
       "technique": "pairwise",
-      "given": "SPR-CURRENT-04 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the corner condition for install-runtime",
-      "then": "combined edge inputs still preserve the declared outcome without weakening gates: Claude and Codex active installs resolve through stable current pointers after pinning",
-      "executor": "pytest",
-      "evidence_policy": "automated_regression"
+      "given": "SFSM-04 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the corner condition for runtime skill surface hooks",
+      "then": "combined runtime, delegation, and gate-state variations preserve the outcome: Codex guidance avoids nonexistent Skill callable while Claude keeps Skill tool",
+      "executor": "pytest+hook-fixture",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_04.py"
     },
     {
-      "case_id": "SPR-CURRENT-04-error-guessing",
-      "cap_id": "SPR-CURRENT-04",
-      "entry_point": "install-runtime",
-      "entry_type": "CLI",
+      "case_id": "SFSM-04-error-guessing",
+      "cap_id": "SFSM-04",
+      "entry_point": "runtime skill surface hooks",
+      "entry_type": "API",
       "category": "error-guessing",
       "technique": "error-guessing",
-      "given": "SPR-CURRENT-04 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the error-guessing condition for install-runtime",
-      "then": "a known failure pattern is actively targeted and the declared guard catches it: Claude and Codex active installs resolve through stable current pointers after pinning",
-      "executor": "pytest",
-      "evidence_policy": "automated_regression"
+      "given": "SFSM-04 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the error-guessing condition for runtime skill surface hooks",
+      "then": "a known failure pattern is targeted and caught by the guard: Codex guidance avoids nonexistent Skill callable while Claude keeps Skill tool",
+      "executor": "pytest+hook-fixture",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_04.py"
     },
     {
-      "case_id": "SPR-NOHARDPIN-05-happy",
-      "cap_id": "SPR-NOHARDPIN-05",
-      "entry_point": "install-runtime",
-      "entry_type": "CLI",
+      "case_id": "SFSM-05-happy",
+      "cap_id": "SFSM-05",
+      "entry_point": "fork maintenance docs",
+      "entry_type": "library",
       "category": "happy",
       "technique": "use-case",
-      "given": "SPR-NOHARDPIN-05 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the happy condition for install-runtime",
-      "then": "the nominal approved Superpower path reaches the declared outcome: active registries fail verification when Superpower entries hard-pin versioned cache paths",
-      "executor": "pytest",
-      "evidence_policy": "automated_regression"
+      "given": "SFSM-05 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the happy condition for fork maintenance docs",
+      "then": "the nominal path delivers the declared outcome: active writing-arch references are absent or historical only",
+      "executor": "pytest+golden-prompt",
+      "evidence_policy": "manual_live_qa",
+      "regression_home": "tests/superpower_fsm/test_sfsm_05.py"
     },
     {
-      "case_id": "SPR-NOHARDPIN-05-boundary",
-      "cap_id": "SPR-NOHARDPIN-05",
-      "entry_point": "install-runtime",
-      "entry_type": "CLI",
+      "case_id": "SFSM-05-boundary",
+      "cap_id": "SFSM-05",
+      "entry_point": "fork maintenance docs",
+      "entry_type": "library",
       "category": "boundary",
       "technique": "BVA",
-      "given": "SPR-NOHARDPIN-05 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the boundary condition for install-runtime",
-      "then": "the smallest valid input and largest expected stage list still produce the declared outcome: active registries fail verification when Superpower entries hard-pin versioned cache paths",
-      "executor": "pytest",
-      "evidence_policy": "automated_regression"
+      "given": "SFSM-05 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the boundary condition for fork maintenance docs",
+      "then": "the smallest valid prompt and the full remaining gate list still deliver the declared outcome: active writing-arch references are absent or historical only",
+      "executor": "pytest+golden-prompt",
+      "evidence_policy": "manual_live_qa",
+      "regression_home": "tests/superpower_fsm/test_sfsm_05.py"
     },
     {
-      "case_id": "SPR-NOHARDPIN-05-negative",
-      "cap_id": "SPR-NOHARDPIN-05",
-      "entry_point": "install-runtime",
-      "entry_type": "CLI",
+      "case_id": "SFSM-05-negative",
+      "cap_id": "SFSM-05",
+      "entry_point": "fork maintenance docs",
+      "entry_type": "library",
       "category": "negative",
       "technique": "decision-table",
-      "given": "SPR-NOHARDPIN-05 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the negative condition for install-runtime",
-      "then": "invalid or premature action is rejected with the declared blocking behavior: active registries fail verification when Superpower entries hard-pin versioned cache paths",
-      "executor": "pytest",
-      "evidence_policy": "automated_regression"
+      "given": "SFSM-05 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the negative condition for fork maintenance docs",
+      "then": "premature or incomplete action is blocked instead of silently advancing: active writing-arch references are absent or historical only",
+      "executor": "pytest+golden-prompt",
+      "evidence_policy": "manual_live_qa",
+      "regression_home": "tests/superpower_fsm/test_sfsm_05.py"
     },
     {
-      "case_id": "SPR-NOHARDPIN-05-integration",
-      "cap_id": "SPR-NOHARDPIN-05",
-      "entry_point": "install-runtime",
-      "entry_type": "CLI",
+      "case_id": "SFSM-05-integration",
+      "cap_id": "SFSM-05",
+      "entry_point": "fork maintenance docs",
+      "entry_type": "library",
       "category": "integration",
       "technique": "use-case",
-      "given": "SPR-NOHARDPIN-05 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the integration condition for install-runtime",
-      "then": "the declared surface and its adjacent runtime artifact cooperate to produce the declared outcome: active registries fail verification when Superpower entries hard-pin versioned cache paths",
-      "executor": "pytest",
-      "evidence_policy": "automated_regression"
+      "given": "SFSM-05 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the integration condition for fork maintenance docs",
+      "then": "the declared surface and adjacent hook/artifact cooperate to deliver the outcome: active writing-arch references are absent or historical only",
+      "executor": "pytest+golden-prompt",
+      "evidence_policy": "manual_live_qa",
+      "regression_home": "tests/superpower_fsm/test_sfsm_05.py"
     },
     {
-      "case_id": "SPR-NOHARDPIN-05-corner",
-      "cap_id": "SPR-NOHARDPIN-05",
-      "entry_point": "install-runtime",
-      "entry_type": "CLI",
+      "case_id": "SFSM-05-corner",
+      "cap_id": "SFSM-05",
+      "entry_point": "fork maintenance docs",
+      "entry_type": "library",
       "category": "corner",
       "technique": "pairwise",
-      "given": "SPR-NOHARDPIN-05 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the corner condition for install-runtime",
-      "then": "combined edge inputs still preserve the declared outcome without weakening gates: active registries fail verification when Superpower entries hard-pin versioned cache paths",
-      "executor": "pytest",
-      "evidence_policy": "automated_regression"
+      "given": "SFSM-05 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the corner condition for fork maintenance docs",
+      "then": "combined runtime, delegation, and gate-state variations preserve the outcome: active writing-arch references are absent or historical only",
+      "executor": "pytest+golden-prompt",
+      "evidence_policy": "manual_live_qa",
+      "regression_home": "tests/superpower_fsm/test_sfsm_05.py"
     },
     {
-      "case_id": "SPR-NOHARDPIN-05-error-guessing",
-      "cap_id": "SPR-NOHARDPIN-05",
-      "entry_point": "install-runtime",
-      "entry_type": "CLI",
+      "case_id": "SFSM-05-error-guessing",
+      "cap_id": "SFSM-05",
+      "entry_point": "fork maintenance docs",
+      "entry_type": "library",
       "category": "error-guessing",
       "technique": "error-guessing",
-      "given": "SPR-NOHARDPIN-05 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the error-guessing condition for install-runtime",
-      "then": "a known failure pattern is actively targeted and the declared guard catches it: active registries fail verification when Superpower entries hard-pin versioned cache paths",
-      "executor": "pytest",
-      "evidence_policy": "automated_regression"
+      "given": "SFSM-05 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the error-guessing condition for fork maintenance docs",
+      "then": "a known failure pattern is targeted and caught by the guard: active writing-arch references are absent or historical only",
+      "executor": "pytest+golden-prompt",
+      "evidence_policy": "manual_live_qa",
+      "regression_home": "tests/superpower_fsm/test_sfsm_05.py"
     },
     {
-      "case_id": "SPR-BUILD-06-happy",
-      "cap_id": "SPR-BUILD-06",
-      "entry_point": "superpower-skill-entry",
-      "entry_type": "process",
+      "case_id": "SFSM-06-happy",
+      "cap_id": "SFSM-06",
+      "entry_point": "local orch job/outbox",
+      "entry_type": "API",
       "category": "happy",
       "technique": "use-case",
-      "given": "SPR-BUILD-06 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the happy condition for superpower-skill-entry",
-      "then": "the nominal approved Superpower path reaches the declared outcome: only S4_BUILD executor may become external after explicit confirmation",
-      "executor": "skill-pressure-scenario",
-      "evidence_policy": "manual_live_qa"
+      "given": "SFSM-06 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the happy condition for local orch job/outbox",
+      "then": "the nominal path delivers the declared outcome: Claude builder can own implementation only after approved plan",
+      "executor": "pytest+hook-fixture",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_06.py"
     },
     {
-      "case_id": "SPR-BUILD-06-boundary",
-      "cap_id": "SPR-BUILD-06",
-      "entry_point": "superpower-skill-entry",
-      "entry_type": "process",
+      "case_id": "SFSM-06-boundary",
+      "cap_id": "SFSM-06",
+      "entry_point": "local orch job/outbox",
+      "entry_type": "API",
       "category": "boundary",
       "technique": "BVA",
-      "given": "SPR-BUILD-06 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the boundary condition for superpower-skill-entry",
-      "then": "the smallest valid input and largest expected stage list still produce the declared outcome: only S4_BUILD executor may become external after explicit confirmation",
-      "executor": "skill-pressure-scenario",
-      "evidence_policy": "manual_live_qa"
+      "given": "SFSM-06 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the boundary condition for local orch job/outbox",
+      "then": "the smallest valid prompt and the full remaining gate list still deliver the declared outcome: Claude builder can own implementation only after approved plan",
+      "executor": "pytest+hook-fixture",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_06.py"
     },
     {
-      "case_id": "SPR-BUILD-06-negative",
-      "cap_id": "SPR-BUILD-06",
-      "entry_point": "superpower-skill-entry",
-      "entry_type": "process",
+      "case_id": "SFSM-06-negative",
+      "cap_id": "SFSM-06",
+      "entry_point": "local orch job/outbox",
+      "entry_type": "API",
       "category": "negative",
       "technique": "decision-table",
-      "given": "SPR-BUILD-06 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the negative condition for superpower-skill-entry",
-      "then": "invalid or premature action is rejected with the declared blocking behavior: only S4_BUILD executor may become external after explicit confirmation",
-      "executor": "skill-pressure-scenario",
-      "evidence_policy": "manual_live_qa"
+      "given": "SFSM-06 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the negative condition for local orch job/outbox",
+      "then": "premature or incomplete action is blocked instead of silently advancing: Claude builder can own implementation only after approved plan",
+      "executor": "pytest+hook-fixture",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_06.py"
     },
     {
-      "case_id": "SPR-BUILD-06-integration",
-      "cap_id": "SPR-BUILD-06",
-      "entry_point": "superpower-skill-entry",
-      "entry_type": "process",
+      "case_id": "SFSM-06-integration",
+      "cap_id": "SFSM-06",
+      "entry_point": "local orch job/outbox",
+      "entry_type": "API",
       "category": "integration",
       "technique": "use-case",
-      "given": "SPR-BUILD-06 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the integration condition for superpower-skill-entry",
-      "then": "the declared surface and its adjacent runtime artifact cooperate to produce the declared outcome: only S4_BUILD executor may become external after explicit confirmation",
-      "executor": "skill-pressure-scenario",
-      "evidence_policy": "manual_live_qa"
+      "given": "SFSM-06 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the integration condition for local orch job/outbox",
+      "then": "the declared surface and adjacent hook/artifact cooperate to deliver the outcome: Claude builder can own implementation only after approved plan",
+      "executor": "pytest+hook-fixture",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_06.py"
     },
     {
-      "case_id": "SPR-BUILD-06-corner",
-      "cap_id": "SPR-BUILD-06",
-      "entry_point": "superpower-skill-entry",
-      "entry_type": "process",
+      "case_id": "SFSM-06-corner",
+      "cap_id": "SFSM-06",
+      "entry_point": "local orch job/outbox",
+      "entry_type": "API",
       "category": "corner",
       "technique": "pairwise",
-      "given": "SPR-BUILD-06 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the corner condition for superpower-skill-entry",
-      "then": "combined edge inputs still preserve the declared outcome without weakening gates: only S4_BUILD executor may become external after explicit confirmation",
-      "executor": "skill-pressure-scenario",
-      "evidence_policy": "manual_live_qa"
+      "given": "SFSM-06 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the corner condition for local orch job/outbox",
+      "then": "combined runtime, delegation, and gate-state variations preserve the outcome: Claude builder can own implementation only after approved plan",
+      "executor": "pytest+hook-fixture",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_06.py"
     },
     {
-      "case_id": "SPR-BUILD-06-error-guessing",
-      "cap_id": "SPR-BUILD-06",
-      "entry_point": "superpower-skill-entry",
-      "entry_type": "process",
+      "case_id": "SFSM-06-error-guessing",
+      "cap_id": "SFSM-06",
+      "entry_point": "local orch job/outbox",
+      "entry_type": "API",
       "category": "error-guessing",
       "technique": "error-guessing",
-      "given": "SPR-BUILD-06 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the error-guessing condition for superpower-skill-entry",
-      "then": "a known failure pattern is actively targeted and the declared guard catches it: only S4_BUILD executor may become external after explicit confirmation",
-      "executor": "skill-pressure-scenario",
-      "evidence_policy": "manual_live_qa"
+      "given": "SFSM-06 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the error-guessing condition for local orch job/outbox",
+      "then": "a known failure pattern is targeted and caught by the guard: Claude builder can own implementation only after approved plan",
+      "executor": "pytest+hook-fixture",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_06.py"
     },
     {
-      "case_id": "SPR-FEEDBACK-07-happy",
-      "cap_id": "SPR-FEEDBACK-07",
-      "entry_point": "verification-runtime",
-      "entry_type": "CLI",
-      "category": "happy",
-      "technique": "use-case",
-      "given": "SPR-FEEDBACK-07 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the happy condition for verification-runtime",
-      "then": "the nominal approved Superpower path reaches the declared outcome: verification misses are recorded as structured checklist or archetype feedback and unresolved P2/P3 blocks signoff",
-      "executor": "pytest",
-      "evidence_policy": "automated_regression"
-    },
-    {
-      "case_id": "SPR-FEEDBACK-07-boundary",
-      "cap_id": "SPR-FEEDBACK-07",
-      "entry_point": "verification-runtime",
-      "entry_type": "CLI",
-      "category": "boundary",
-      "technique": "BVA",
-      "given": "SPR-FEEDBACK-07 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the boundary condition for verification-runtime",
-      "then": "the smallest valid input and largest expected stage list still produce the declared outcome: verification misses are recorded as structured checklist or archetype feedback and unresolved P2/P3 blocks signoff",
-      "executor": "pytest",
-      "evidence_policy": "automated_regression"
-    },
-    {
-      "case_id": "SPR-FEEDBACK-07-negative",
-      "cap_id": "SPR-FEEDBACK-07",
-      "entry_point": "verification-runtime",
-      "entry_type": "CLI",
-      "category": "negative",
-      "technique": "decision-table",
-      "given": "SPR-FEEDBACK-07 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the negative condition for verification-runtime",
-      "then": "invalid or premature action is rejected with the declared blocking behavior: verification misses are recorded as structured checklist or archetype feedback and unresolved P2/P3 blocks signoff",
-      "executor": "pytest",
-      "evidence_policy": "automated_regression"
-    },
-    {
-      "case_id": "SPR-FEEDBACK-07-integration",
-      "cap_id": "SPR-FEEDBACK-07",
-      "entry_point": "verification-runtime",
-      "entry_type": "CLI",
-      "category": "integration",
-      "technique": "use-case",
-      "given": "SPR-FEEDBACK-07 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the integration condition for verification-runtime",
-      "then": "the declared surface and its adjacent runtime artifact cooperate to produce the declared outcome: verification misses are recorded as structured checklist or archetype feedback and unresolved P2/P3 blocks signoff",
-      "executor": "pytest",
-      "evidence_policy": "automated_regression"
-    },
-    {
-      "case_id": "SPR-FEEDBACK-07-corner",
-      "cap_id": "SPR-FEEDBACK-07",
-      "entry_point": "verification-runtime",
-      "entry_type": "CLI",
-      "category": "corner",
-      "technique": "pairwise",
-      "given": "SPR-FEEDBACK-07 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the corner condition for verification-runtime",
-      "then": "combined edge inputs still preserve the declared outcome without weakening gates: verification misses are recorded as structured checklist or archetype feedback and unresolved P2/P3 blocks signoff",
-      "executor": "pytest",
-      "evidence_policy": "automated_regression"
-    },
-    {
-      "case_id": "SPR-FEEDBACK-07-error-guessing",
-      "cap_id": "SPR-FEEDBACK-07",
-      "entry_point": "verification-runtime",
-      "entry_type": "CLI",
-      "category": "error-guessing",
-      "technique": "error-guessing",
-      "given": "SPR-FEEDBACK-07 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the error-guessing condition for verification-runtime",
-      "then": "a known failure pattern is actively targeted and the declared guard catches it: verification misses are recorded as structured checklist or archetype feedback and unresolved P2/P3 blocks signoff",
-      "executor": "pytest",
-      "evidence_policy": "automated_regression"
-    },
-    {
-      "case_id": "SPR-FINISH-08-happy",
-      "cap_id": "SPR-FINISH-08",
-      "entry_point": "verification-runtime",
+      "case_id": "SFSM-07-happy",
+      "cap_id": "SFSM-07",
+      "entry_point": "tests",
       "entry_type": "CLI",
       "category": "happy",
       "technique": "use-case",
-      "given": "SPR-FINISH-08 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the happy condition for verification-runtime",
-      "then": "the nominal approved Superpower path reaches the declared outcome: completion claims require gate evidence and missing evidence forces blocked or partial wording",
+      "given": "SFSM-07 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the happy condition for tests",
+      "then": "the nominal path delivers the declared outcome: prompt and gate behavior has deterministic regression coverage",
       "executor": "pytest",
-      "evidence_policy": "automated_regression"
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_07.py"
     },
     {
-      "case_id": "SPR-FINISH-08-boundary",
-      "cap_id": "SPR-FINISH-08",
-      "entry_point": "verification-runtime",
+      "case_id": "SFSM-07-boundary",
+      "cap_id": "SFSM-07",
+      "entry_point": "tests",
       "entry_type": "CLI",
       "category": "boundary",
       "technique": "BVA",
-      "given": "SPR-FINISH-08 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the boundary condition for verification-runtime",
-      "then": "the smallest valid input and largest expected stage list still produce the declared outcome: completion claims require gate evidence and missing evidence forces blocked or partial wording",
+      "given": "SFSM-07 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the boundary condition for tests",
+      "then": "the smallest valid prompt and the full remaining gate list still deliver the declared outcome: prompt and gate behavior has deterministic regression coverage",
       "executor": "pytest",
-      "evidence_policy": "automated_regression"
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_07.py"
     },
     {
-      "case_id": "SPR-FINISH-08-negative",
-      "cap_id": "SPR-FINISH-08",
-      "entry_point": "verification-runtime",
+      "case_id": "SFSM-07-negative",
+      "cap_id": "SFSM-07",
+      "entry_point": "tests",
       "entry_type": "CLI",
       "category": "negative",
       "technique": "decision-table",
-      "given": "SPR-FINISH-08 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the negative condition for verification-runtime",
-      "then": "invalid or premature action is rejected with the declared blocking behavior: completion claims require gate evidence and missing evidence forces blocked or partial wording",
+      "given": "SFSM-07 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the negative condition for tests",
+      "then": "premature or incomplete action is blocked instead of silently advancing: prompt and gate behavior has deterministic regression coverage",
       "executor": "pytest",
-      "evidence_policy": "automated_regression"
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_07.py"
     },
     {
-      "case_id": "SPR-FINISH-08-integration",
-      "cap_id": "SPR-FINISH-08",
-      "entry_point": "verification-runtime",
+      "case_id": "SFSM-07-integration",
+      "cap_id": "SFSM-07",
+      "entry_point": "tests",
       "entry_type": "CLI",
       "category": "integration",
       "technique": "use-case",
-      "given": "SPR-FINISH-08 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the integration condition for verification-runtime",
-      "then": "the declared surface and its adjacent runtime artifact cooperate to produce the declared outcome: completion claims require gate evidence and missing evidence forces blocked or partial wording",
+      "given": "SFSM-07 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the integration condition for tests",
+      "then": "the declared surface and adjacent hook/artifact cooperate to deliver the outcome: prompt and gate behavior has deterministic regression coverage",
       "executor": "pytest",
-      "evidence_policy": "automated_regression"
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_07.py"
     },
     {
-      "case_id": "SPR-FINISH-08-corner",
-      "cap_id": "SPR-FINISH-08",
-      "entry_point": "verification-runtime",
+      "case_id": "SFSM-07-corner",
+      "cap_id": "SFSM-07",
+      "entry_point": "tests",
       "entry_type": "CLI",
       "category": "corner",
       "technique": "pairwise",
-      "given": "SPR-FINISH-08 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the corner condition for verification-runtime",
-      "then": "combined edge inputs still preserve the declared outcome without weakening gates: completion claims require gate evidence and missing evidence forces blocked or partial wording",
+      "given": "SFSM-07 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the corner condition for tests",
+      "then": "combined runtime, delegation, and gate-state variations preserve the outcome: prompt and gate behavior has deterministic regression coverage",
       "executor": "pytest",
-      "evidence_policy": "automated_regression"
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_07.py"
     },
     {
-      "case_id": "SPR-FINISH-08-error-guessing",
-      "cap_id": "SPR-FINISH-08",
-      "entry_point": "verification-runtime",
+      "case_id": "SFSM-07-error-guessing",
+      "cap_id": "SFSM-07",
+      "entry_point": "tests",
       "entry_type": "CLI",
       "category": "error-guessing",
       "technique": "error-guessing",
-      "given": "SPR-FINISH-08 is evaluated from the approved Capability Registry and expected mock artifact",
-      "when": "the verifier exercises the error-guessing condition for verification-runtime",
-      "then": "a known failure pattern is actively targeted and the declared guard catches it: completion claims require gate evidence and missing evidence forces blocked or partial wording",
+      "given": "SFSM-07 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the error-guessing condition for tests",
+      "then": "a known failure pattern is targeted and caught by the guard: prompt and gate behavior has deterministic regression coverage",
       "executor": "pytest",
-      "evidence_policy": "automated_regression"
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_07.py"
+    },
+    {
+      "case_id": "SFSM-08-happy",
+      "cap_id": "SFSM-08",
+      "entry_point": "visual review artifacts",
+      "entry_type": "file",
+      "category": "happy",
+      "technique": "use-case",
+      "given": "SFSM-08 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the happy condition for visual review artifacts",
+      "then": "the nominal path delivers the declared outcome: substantial specs produce review artifacts or explicit N/A reason",
+      "executor": "pytest+schema-lint",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_08.py"
+    },
+    {
+      "case_id": "SFSM-08-boundary",
+      "cap_id": "SFSM-08",
+      "entry_point": "visual review artifacts",
+      "entry_type": "file",
+      "category": "boundary",
+      "technique": "BVA",
+      "given": "SFSM-08 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the boundary condition for visual review artifacts",
+      "then": "the smallest valid prompt and the full remaining gate list still deliver the declared outcome: substantial specs produce review artifacts or explicit N/A reason",
+      "executor": "pytest+schema-lint",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_08.py"
+    },
+    {
+      "case_id": "SFSM-08-negative",
+      "cap_id": "SFSM-08",
+      "entry_point": "visual review artifacts",
+      "entry_type": "file",
+      "category": "negative",
+      "technique": "decision-table",
+      "given": "SFSM-08 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the negative condition for visual review artifacts",
+      "then": "premature or incomplete action is blocked instead of silently advancing: substantial specs produce review artifacts or explicit N/A reason",
+      "executor": "pytest+schema-lint",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_08.py"
+    },
+    {
+      "case_id": "SFSM-08-integration",
+      "cap_id": "SFSM-08",
+      "entry_point": "visual review artifacts",
+      "entry_type": "file",
+      "category": "integration",
+      "technique": "use-case",
+      "given": "SFSM-08 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the integration condition for visual review artifacts",
+      "then": "the declared surface and adjacent hook/artifact cooperate to deliver the outcome: substantial specs produce review artifacts or explicit N/A reason",
+      "executor": "pytest+schema-lint",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_08.py"
+    },
+    {
+      "case_id": "SFSM-08-corner",
+      "cap_id": "SFSM-08",
+      "entry_point": "visual review artifacts",
+      "entry_type": "file",
+      "category": "corner",
+      "technique": "pairwise",
+      "given": "SFSM-08 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the corner condition for visual review artifacts",
+      "then": "combined runtime, delegation, and gate-state variations preserve the outcome: substantial specs produce review artifacts or explicit N/A reason",
+      "executor": "pytest+schema-lint",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_08.py"
+    },
+    {
+      "case_id": "SFSM-08-error-guessing",
+      "cap_id": "SFSM-08",
+      "entry_point": "visual review artifacts",
+      "entry_type": "file",
+      "category": "error-guessing",
+      "technique": "error-guessing",
+      "given": "SFSM-08 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the error-guessing condition for visual review artifacts",
+      "then": "a known failure pattern is targeted and caught by the guard: substantial specs produce review artifacts or explicit N/A reason",
+      "executor": "pytest+schema-lint",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_08.py"
+    },
+    {
+      "case_id": "SFSM-09-happy",
+      "cap_id": "SFSM-09",
+      "entry_point": "issue coverage artifacts",
+      "entry_type": "file",
+      "category": "happy",
+      "technique": "use-case",
+      "given": "SFSM-09 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the happy condition for issue coverage artifacts",
+      "then": "the nominal path delivers the declared outcome: all user-raised issues have durable multidimensional elicitation coverage",
+      "executor": "pytest+schema-lint",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_09.py"
+    },
+    {
+      "case_id": "SFSM-09-boundary",
+      "cap_id": "SFSM-09",
+      "entry_point": "issue coverage artifacts",
+      "entry_type": "file",
+      "category": "boundary",
+      "technique": "BVA",
+      "given": "SFSM-09 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the boundary condition for issue coverage artifacts",
+      "then": "the smallest valid prompt and the full remaining gate list still deliver the declared outcome: all user-raised issues have durable multidimensional elicitation coverage",
+      "executor": "pytest+schema-lint",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_09.py"
+    },
+    {
+      "case_id": "SFSM-09-negative",
+      "cap_id": "SFSM-09",
+      "entry_point": "issue coverage artifacts",
+      "entry_type": "file",
+      "category": "negative",
+      "technique": "decision-table",
+      "given": "SFSM-09 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the negative condition for issue coverage artifacts",
+      "then": "premature or incomplete action is blocked instead of silently advancing: all user-raised issues have durable multidimensional elicitation coverage",
+      "executor": "pytest+schema-lint",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_09.py"
+    },
+    {
+      "case_id": "SFSM-09-integration",
+      "cap_id": "SFSM-09",
+      "entry_point": "issue coverage artifacts",
+      "entry_type": "file",
+      "category": "integration",
+      "technique": "use-case",
+      "given": "SFSM-09 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the integration condition for issue coverage artifacts",
+      "then": "the declared surface and adjacent hook/artifact cooperate to deliver the outcome: all user-raised issues have durable multidimensional elicitation coverage",
+      "executor": "pytest+schema-lint",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_09.py"
+    },
+    {
+      "case_id": "SFSM-09-corner",
+      "cap_id": "SFSM-09",
+      "entry_point": "issue coverage artifacts",
+      "entry_type": "file",
+      "category": "corner",
+      "technique": "pairwise",
+      "given": "SFSM-09 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the corner condition for issue coverage artifacts",
+      "then": "combined runtime, delegation, and gate-state variations preserve the outcome: all user-raised issues have durable multidimensional elicitation coverage",
+      "executor": "pytest+schema-lint",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_09.py"
+    },
+    {
+      "case_id": "SFSM-09-error-guessing",
+      "cap_id": "SFSM-09",
+      "entry_point": "issue coverage artifacts",
+      "entry_type": "file",
+      "category": "error-guessing",
+      "technique": "error-guessing",
+      "given": "SFSM-09 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the error-guessing condition for issue coverage artifacts",
+      "then": "a known failure pattern is targeted and caught by the guard: all user-raised issues have durable multidimensional elicitation coverage",
+      "executor": "pytest+schema-lint",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_09.py"
+    },
+    {
+      "case_id": "SFSM-10-happy",
+      "cap_id": "SFSM-10",
+      "entry_point": "gate progress disclosure",
+      "entry_type": "message",
+      "category": "happy",
+      "technique": "use-case",
+      "given": "SFSM-10 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the happy condition for gate progress disclosure",
+      "then": "the nominal path delivers the declared outcome: pause and transition responses include compact progress line",
+      "executor": "pytest+golden-prompt",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_10.py"
+    },
+    {
+      "case_id": "SFSM-10-boundary",
+      "cap_id": "SFSM-10",
+      "entry_point": "gate progress disclosure",
+      "entry_type": "message",
+      "category": "boundary",
+      "technique": "BVA",
+      "given": "SFSM-10 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the boundary condition for gate progress disclosure",
+      "then": "the smallest valid prompt and the full remaining gate list still deliver the declared outcome: pause and transition responses include compact progress line",
+      "executor": "pytest+golden-prompt",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_10.py"
+    },
+    {
+      "case_id": "SFSM-10-negative",
+      "cap_id": "SFSM-10",
+      "entry_point": "gate progress disclosure",
+      "entry_type": "message",
+      "category": "negative",
+      "technique": "decision-table",
+      "given": "SFSM-10 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the negative condition for gate progress disclosure",
+      "then": "premature or incomplete action is blocked instead of silently advancing: pause and transition responses include compact progress line",
+      "executor": "pytest+golden-prompt",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_10.py"
+    },
+    {
+      "case_id": "SFSM-10-integration",
+      "cap_id": "SFSM-10",
+      "entry_point": "gate progress disclosure",
+      "entry_type": "message",
+      "category": "integration",
+      "technique": "use-case",
+      "given": "SFSM-10 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the integration condition for gate progress disclosure",
+      "then": "the declared surface and adjacent hook/artifact cooperate to deliver the outcome: pause and transition responses include compact progress line",
+      "executor": "pytest+golden-prompt",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_10.py"
+    },
+    {
+      "case_id": "SFSM-10-corner",
+      "cap_id": "SFSM-10",
+      "entry_point": "gate progress disclosure",
+      "entry_type": "message",
+      "category": "corner",
+      "technique": "pairwise",
+      "given": "SFSM-10 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the corner condition for gate progress disclosure",
+      "then": "combined runtime, delegation, and gate-state variations preserve the outcome: pause and transition responses include compact progress line",
+      "executor": "pytest+golden-prompt",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_10.py"
+    },
+    {
+      "case_id": "SFSM-10-error-guessing",
+      "cap_id": "SFSM-10",
+      "entry_point": "gate progress disclosure",
+      "entry_type": "message",
+      "category": "error-guessing",
+      "technique": "error-guessing",
+      "given": "SFSM-10 is evaluated from the approved Capability Registry, not from the implementation plan",
+      "when": "the verifier exercises the error-guessing condition for gate progress disclosure",
+      "then": "a known failure pattern is targeted and caught by the guard: pause and transition responses include compact progress line",
+      "executor": "pytest+golden-prompt",
+      "evidence_policy": "automated_regression",
+      "regression_home": "tests/superpower_fsm/test_sfsm_10.py"
     }
   ]
 }
