@@ -240,3 +240,25 @@ For non-UI specs, produce the closest equivalent expected mock artifact:
 - Data/migration/background job: before/after table, state diagram, or PNG/diagram.
 
 Store the artifact path/URL in the spec near the Capability Registry. The verification plan must read this artifact as intent evidence, but it must still derive tests from the Registry acceptance examples.
+
+## Issue Coverage Gate (SYS.1 — required before Spec Draft)
+
+When the user raises any issue across the discussion (numbered/bulleted lists, screenshots, review packets, corrections, objections, follow-up clarifications), every issue must be recorded in a durable `issue-coverage.json` before Spec Draft is written. Context memory alone is not valid evidence.
+
+`issue-coverage.json` must include for each issue:
+- `issue_id`, `source_turn_id`, `source_text`, `category`, `decision_status`
+- Elicitation dimensions: `answer_status`, `background_status`, `need_status`, `intent_status`, `implicit_context_status` — each must be `resolved`, `repo_evidence`, `prior_approved_spec`, or `deferred_with_user_approval`; any `needs_user` blocks the draft
+- `question_ids` referenced from `clarification-log.json` (append-only Q&A written before relying on it)
+- `cap_id_refs` — every issue traces to a Cap-ID or an explicit rejected/deferred disposition
+
+Any issue with an unresolved dimension or absent from the capability trace blocks Spec Draft.
+
+## Superpower Progress Line
+
+When this skill is used as part of Superpower, every user-facing pause for question/approval/block and every FSM gate/owner transition MUST include:
+
+`Superpower: now=<gate>(<skill>[ @owner]); next=<gate>(<skill>) > ...`
+
+Already-passed gates are omitted. Non-current owners are explicit.
+
+Do not print this line for routine tool calls or ordinary progress updates inside the same gate.

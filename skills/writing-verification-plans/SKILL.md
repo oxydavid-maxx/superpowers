@@ -92,3 +92,11 @@ UI cases must include:
 
 External builders may only own implementation after `writing-plans`. They never own this verification plan, independent review, `verify-arch`, `verify-spec`, release, or push.
 
+## Superpower Progress Line
+
+When this skill is used as part of Superpower, emit the compact progress line only on S2 entry and S2 exit (when handing off to writing-plans), not on every internal action.
+
+`Superpower: now=S2_VERIFICATION_PLAN(superpowers:writing-verification-plans); next=S3_IMPLEMENTATION_PLAN(superpowers:writing-plans) > ...`
+
+Already-passed gates are omitted. Do not print this line for routine tool calls or internal progress inside S2.
+

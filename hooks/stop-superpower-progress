@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+"""Audit-first hook: detect missing Superpower progress lines on assistant stop.
+Reads the Stop event JSON from stdin.
+Always exits 0 (audit-only; not yet fail-closed).
+"""
+import json
+import sys
+
+PROGRESS_MARKER = "Superpower: now="
+
+def main():
+    try:
+        event = json.load(sys.stdin)
+    except (json.JSONDecodeError, ValueError):
+        sys.exit(0)
+
+    # The Stop event may carry the assistant's final message text
+    message = (
+        event.get("message", "")
+        or event.get("response", "")
+        or ""
+    )
+
+    # Only audit if this looks like a Superpower session (hint in session metadata)
+    session_meta = event.get("session", {}) or {}
+    if not session_meta.get("superpower_active"):
+        sys.exit(0)
+
+    if message and PROGRESS_MARKER not in message:
+        print(
+            "[stop-superpower-progress audit] Assistant response did not include "
+            f"'{PROGRESS_MARKER}...' compact progress line. "
+            "Required at every Superpower pause or gate transition.",
+            file=sys.stderr,
+        )
+
+    sys.exit(0)
+
+if __name__ == "__main__":
+    main()

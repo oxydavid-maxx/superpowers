@@ -167,3 +167,27 @@ The PostToolUse `executor_select` hook writes a `## Recommended executor: <X>` b
 
 **If the block says `workflow` (many independent, parallelizable tasks):**
 - Hand off to the `/workflow` tool — deterministic background orchestration with native parallel fan-out and journal+resume.
+
+## External S4 Builder Handoff SOP
+
+External delegation is allowed only for `S4_BUILD`. The orchestrator remains owner of S0-S3, independent S5 verification, fix pushback, release, and push.
+
+If the user specifies a Claude web session for S4_BUILD:
+
+1. Record it in the builder job as `builder_session.type=claude_web`, `builder_session.session_name=<user-specified name>`, `builder_session.user_specified=true`, and `builder_session.handoff_channel=chrome`.
+2. Use Chrome control to claim the existing Claude Code web tab, select the exact named session, and paste/send only a short pointer to the local `jobs/*.json`.
+3. Do not use Claude CLI, a new Claude web session, or a different existing session as a substitute.
+4. If the named session is absent, busy with another task, or cannot be controlled, mark S4 handoff BLOCKED and report the blocker instead of falling back.
+5. Poll local `outbox/*.report.json`, git status, and allowed-path diff. Do not judge S4 complete from chat prose alone.
+
+## Plan Coverage Gate
+
+Before S4_BUILD begins, a `plan-coverage.json` artifact must exist reporting zero spec-capability gaps. The orchestrator runs the coverage check; the builder must not start without the green artifact.
+
+## Superpower Progress Line
+
+When this skill is used as part of Superpower, emit the compact progress line only on S3 entry and S3 exit (when handing off to S4_BUILD), not on every internal action.
+
+`Superpower: now=S3_IMPLEMENTATION_PLAN(superpowers:writing-plans); next=S4_BUILD(superpowers:executing-plans) > ...`
+
+Already-passed gates are omitted. Do not print this line for routine tool calls or internal progress inside S3.

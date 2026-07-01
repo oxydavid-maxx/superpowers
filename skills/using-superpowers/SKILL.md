@@ -55,6 +55,7 @@ The response MUST include:
 | S1_SPEC_DRAFT | `superpowers:brainstorming` |
 | S1_EXPECTED_MOCK_V1 | `superpowers:brainstorming` |
 | S1_SOTA | `superpowers:brainstorming` + source research/WebSearch |
+| S1_REVISE_DISCUSS | `superpowers:brainstorming` |
 | S1_SPEC_FINAL | `superpowers:brainstorming` |
 | S1_EXPECTED_MOCK_V2 | `superpowers:brainstorming` |
 | S2_VERIFICATION_PLAN | `superpowers:writing-verification-plans` |
@@ -72,12 +73,14 @@ The response MUST also state:
 - Owner is `current session`.
 - `S4_BUILD executor` defaults to `current session`.
 - Only `S4_BUILD executor` can become external, and only after explicit confirmation before S4_BUILD.
+- If the user specifies a Claude web session for S4_BUILD, the orchestrator MUST use that exact visible Claude Code web session through Chrome control. Do not substitute Claude CLI, a new Claude session, or another existing session. If the named session is absent, busy, or cannot be controlled, stop and report the blocker.
 
 The response MUST NOT:
 
 - Only paste fixed boilerplate.
 - Hardcode Codex or Claude as the default owner.
 - Ask for an external session before S4_BUILD.
+- Treat "Claude Code" or "Claude CLI" as equivalent to a user-specified Claude web session.
 - Write a spec, plan, or code before S0_DISCUSS is complete.
 
 # Using Skills
@@ -152,6 +155,16 @@ When multiple skills could apply, use this order:
 **Flexible** (patterns): Adapt principles to context.
 
 The skill itself tells you which.
+
+## Superpower Progress Line
+
+When this skill is used as part of Superpower, every user-facing pause for question/approval/block and every FSM gate/owner transition MUST include:
+
+`Superpower: now=<gate>(<skill>[ @owner]); next=<gate>(<skill>) > ...`
+
+Already-passed gates are omitted. Non-current owners are explicit.
+
+Do not print this line for routine tool calls or ordinary progress updates inside the same gate.
 
 ## User Instructions
 

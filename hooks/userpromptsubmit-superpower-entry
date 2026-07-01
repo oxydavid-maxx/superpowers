@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+"""Audit-first hook: detect Superpower entry prompts.
+Reads the UserPromptSubmit event JSON from stdin.
+Always exits 0 (audit-only; not yet fail-closed).
+"""
+import json
+import sys
+import re
+
+SUPERPOWER_PATTERNS = [
+    r'\bsuperpower\b',
+    r'用\s*superpower',
+    r'superpower\s+fork',
+]
+
+def main():
+    try:
+        event = json.load(sys.stdin)
+    except (json.JSONDecodeError, ValueError):
+        # malformed input — skip silently
+        sys.exit(0)
+
+    prompt = event.get("prompt", "")
+    for pattern in SUPERPOWER_PATTERNS:
+        if re.search(pattern, prompt, re.IGNORECASE):
+            print(
+                "[superpower-entry audit] Superpower entry detected in prompt. "
+                "Agent should declare FSM state and emit compact progress line before any action.",
+                file=sys.stderr,
+            )
+            break
+
+    sys.exit(0)
+
+if __name__ == "__main__":
+    main()
