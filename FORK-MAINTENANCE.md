@@ -11,9 +11,9 @@ C:\dev\superpowers-fork/                ← local clone (this repo)
 ```
 
 Our V-model additions live in:
-- `skills/brainstorming/SKILL.md` — native writing-arch routing + `## Surfaces` requirement + investigate-first + visual-mock-after-spec
+- `skills/brainstorming/SKILL.md` — `## Surfaces` requirement + investigate-first + visual-mock-after-spec
 - `skills/writing-plans/SKILL.md` — deterministic executor handoff + product-coverage boundary
-- `skills/writing-arch/` (new) — left-arm architecture phase, multi-entry only
+- `skills/writing-arch/` — **superseded/historical**: architecture placement is now encoded by `Capability Registry.entry_point` + `## Surfaces`; this directory is no longer active or callable
 - `skills/verify-arch/` (new) — right-arm SWE.5 integration verify
 - `skills/verify-spec/` (new) — right-arm SWE.6 acceptance verify
 - `package.json` / `.claude-plugin/*.json` — version `6.0.3-vmodel.N`
