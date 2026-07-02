@@ -1,6 +1,7 @@
 ---
 name: writing-verification-plans
 description: Use when a reviewed spec exists and implementation planning must be preceded by a deterministic verification test-design.
+methodology-sota-reviewed: 2026-07-02
 ---
 
 # Writing Verification Plans
@@ -65,6 +66,37 @@ Write `.superpowers/verify/test-design.json` with:
 ```
 
 Every Cap-ID must include all categories required by `risk_scale.required_categories()`. For UI Cap-IDs that includes `browser-clickthrough`, `responsive-mobile`, `touch-targets`, `keyboard-focus`, `feedback-states`, `runtime-cleanliness`, and `visual-evidence`.
+
+## Two-Pass SOTA (verification methodology)
+
+Symmetric to brainstorming's product-SOTA loop: S2 owns its OWN SOTA loop over the
+verification approach. This is MANDATORY, not optional.
+
+**Pass 1 — draft.** Write the test-design (categories, techniques, cases) as usual.
+
+**Pass 2 — falsify the verification approach.** For each capability ask: *what is the
+SOTA way to verify THIS class of capability in 2026, and did the draft use it?* Search
+prior art, cite it, and record a verdict per question. Reusing an older spec's citations
+is the exact failure this closes — a source marked `reused_from_prior_spec` counts as
+not-done. Emit `.superpowers/verify/verification-sota-verdicts.json`:
+
+    {"questions": [
+      {"id": "sota_method", "verdict": "...", "citations": [{"name": "...", "url": "..."}]},
+      ...]}
+
+Every question needs ≥1 real citation (non-empty name AND url) or it is treated as
+unanswered — the SAME rule S1 SOTA uses. A test-design may not exit S2 (hand off to
+`writing-plans`) until `verification-sota-verdicts.json` exists with every question cited.
+
+**Pass 3 — refine.** Fold what Pass 2 found back into the test-design.
+
+### The 2026 triad (required where the risk axis applies)
+
+| Technique | Required when | Contract |
+|---|---|---|
+| `property-based` (Hypothesis) | cap carries `state_data_contract` (`has_contract`) | one `property` case whose `then` names the struck invariant; `RuleBasedStateMachine` for state machines |
+| mutation (cosmic-ray, diff-scoped) | high-risk cap module changed | S6 hard-blocks on high-risk survivors; tool failure fails closed |
+| branch coverage (pytest-cov) | any changed source file | S5 lists uncovered changed-file branches as findings (non-blocking) |
 
 ## UI-Human Requirement
 
