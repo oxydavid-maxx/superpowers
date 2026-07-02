@@ -9,11 +9,36 @@ MATCH = "MATCHES"
 
 
 def evaluate_coverage(registry, verdicts, *, now, max_age_s=3600):
-    reg_caps = [c["cap_id"] for c in registry.get("capabilities", [])]
+    """Denominator discipline with an out-of-scope contract (N/A drift fix,
+    SUPERPOWER-FEEDBACK 2026-06-30; implemented 2026-07-03, 光佑-authorized):
+    a registry cap explicitly declared out of scope (out_of_scope / scope
+    starting with "out_of_scope" + expected_verdict) is satisfied by an HONEST
+    matching N/A row (verdict == expected_verdict, carrying a reason/evidence)
+    — never forced into a false MATCHES; a missing/drifting/unexplained row is
+    an out_of_scope_violation."""
     by_id = {r["cap_id"]: r for r in verdicts.get("results", [])}
     uncovered, non_matches, stale = [], [], []
-    for cap in reg_caps:
+    oos_violations, oos_detail, na_ok = [], {}, []
+    for cap_row in registry.get("capabilities", []):
+        cap = cap_row["cap_id"]
+        declared_oos = (cap_row.get("out_of_scope")
+                        or str(cap_row.get("scope", "")).startswith("out_of_scope")
+                        or bool(cap_row.get("expected_verdict")))
         r = by_id.get(cap)
+        if declared_oos:
+            expected = cap_row.get("expected_verdict") or "N/A_NOT_IMPLEMENTED"
+            if r is None:
+                oos_violations.append(cap)
+                oos_detail[cap] = "declared out-of-scope but no honest N/A row present"
+            elif r.get("verdict") != expected:
+                oos_violations.append(cap)
+                oos_detail[cap] = f"expected {expected}, got {r.get('verdict')}"
+            elif not (r.get("reason") or r.get("evidence")):
+                oos_violations.append(cap)
+                oos_detail[cap] = "N/A row lacks a reason"
+            else:
+                na_ok.append(cap)   # honest N/A: satisfied, not a non_match
+            continue
         if r is None:
             uncovered.append(cap)
             continue
@@ -23,9 +48,11 @@ def evaluate_coverage(registry, verdicts, *, now, max_age_s=3600):
         if (now - float(r.get("evidence_ts", 0))) > max_age_s:
             stale.append(cap)
             continue
-    complete = not (uncovered or non_matches or stale)
+    complete = not (uncovered or non_matches or stale or oos_violations)
     return {"complete": complete, "uncovered": uncovered,
-            "non_matches": non_matches, "stale": stale}
+            "non_matches": non_matches, "stale": stale, "na_ok": na_ok,
+            "out_of_scope_violations": oos_violations,
+            "out_of_scope_detail": oos_detail}
 
 
 def category_coverage(required, present):
