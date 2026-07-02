@@ -17,7 +17,7 @@ import re
 from pathlib import Path
 
 VALID_TECHNIQUES = {"EP", "BVA", "decision-table", "state-transition",
-                    "use-case", "pairwise", "error-guessing"}
+                    "use-case", "pairwise", "error-guessing", "property-based"}
 
 _PROXY = [r"\bhttp\s*200\b", r"\b200\s+(ok|returned)\b", r"\blooks?\b", r"\bseems?\b",
           r"structural[- ]guard", r"\bexists\b", r"\bcompiles?\b", r"\bunverified\b"]
@@ -77,6 +77,29 @@ def lint_error_guessing(cap_id, cases):
     if any(c.get("category") == "error-guessing" for c in mine):
         return []
     return [f"{cap_id}: no error-guessing/fault-targeting case (all confirmatory)"]
+
+
+_PROPERTY_MARKERS = ("invariant", "property", "for all", "holds", "never", "always", "round-trip")
+
+
+def lint_thin_property(cap, cases):
+    """CAP-25 thin-property: a state_data_contract-bearing cap's property case must
+    reference an invariant/property in its assertion. A `property` category present
+    but with a hollow `then` is not real invariant coverage — presence of the label
+    must not launder an empty case. (Tripwire, not a proof; see the module CEILING.)"""
+    if not (cap.get("risk") or {}).get("has_contract"):
+        return []
+    cid = cap.get("cap_id", "?")
+    defects = []
+    for c in cases:
+        if c.get("cap_id") != cid or c.get("category") != "property":
+            continue
+        then = (c.get("then") or "").lower()
+        if not any(m in then for m in _PROPERTY_MARKERS):
+            defects.append(
+                f"{cid}: thin-property case {c.get('case_id', '?')} — `then` references no "
+                f"invariant/property (hollow property case; name the struck invariant)")
+    return defects
 
 
 def lint_ui_evidence(case):
@@ -193,6 +216,7 @@ def lint_all(td):
         defects += lint_round_trip(cap, cases)
         defects += lint_pairwise(cap, cases)
         defects += lint_error_guessing(cap.get("cap_id", "?"), cases)
+        defects += lint_thin_property(cap, cases)
     return defects
 
 
