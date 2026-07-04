@@ -60,7 +60,7 @@ The response MUST include:
 | S1_EXPECTED_MOCK_V2 | `superpowers:brainstorming` |
 | S2_VERIFICATION_PLAN | `superpowers:writing-verification-plans` |
 | S3_IMPLEMENTATION_PLAN | `superpowers:writing-plans` |
-| S4_BUILD | `superpowers:executing-plans`, `superpowers:test-driven-development`, or `superpowers:subagent-driven-development` as applicable |
+| S4_BUILD | registered engine `superpower-graph (spg)` fleet execution (see Registered Superpower Engine); in-session fallback: `superpowers:executing-plans`, `superpowers:test-driven-development`, or `superpowers:subagent-driven-development` as applicable |
 | S5_VERIFY_ARCH | `superpowers:verify-arch`, only for multi-entry projects |
 | S5_VERIFY_SPEC | `superpowers:verify-spec` |
 | S5_FIX_LOOP | `superpowers:systematic-debugging` plus repeat S4/S5 |
@@ -71,7 +71,7 @@ The response MUST also state:
 - Current state is `S0_DISCUSS`.
 - Current action is requirements clarification only.
 - Owner is `current session`.
-- `S4_BUILD executor` defaults to `current session`.
+- `S4_BUILD executor` defaults to the registered engine `superpower-graph (spg)` when the task repo is spg-compatible; otherwise `current session`.
 - Only `S4_BUILD executor` can become external, and only after explicit confirmation before S4_BUILD.
 - If the user specifies a Claude web session for S4_BUILD, the orchestrator MUST use that exact visible Claude Code web session through Chrome control. Do not substitute Claude CLI, a new Claude session, or another existing session. If the named session is absent, busy, or cannot be controlled, stop and report the blocker.
 
@@ -82,6 +82,14 @@ The response MUST NOT:
 - Ask for an external session before S4_BUILD.
 - Treat "Claude Code" or "Claude CLI" as equivalent to a user-specified Claude web session.
 - Write a spec, plan, or code before S0_DISCUSS is complete.
+
+## Registered Superpower Engine
+
+`superpower-graph` (spg, `C:\dev\superpower-graph`) is the registered official superpower execution engine (光佑 directive, 2026-07-04; Phase 3 production evidence: 558 tests green, verify-arch 16/16 reachable, verify-spec 16/16 MATCHES).
+
+- Scope today: S1→S4 execution — plan intake, ticket slicing, heterogeneous fleet dispatch per `corpus/model-policy.yaml` (commander=fable, coder=codex, cross-family review), escalation ladder, budget fuse, arbitration, and per-station usage accounting (per-LLM calls + wall minutes + tokens; CAP-44, `spg status --costs/--budgets`).
+- `S4_BUILD executor` therefore defaults to the spg fleet (`spg intake` / `spg run` / `spg status`) when the task repo is spg-compatible; `current session` remains the fallback executor.
+- S5/S6 stay on the in-session skills listed above until spg Phase 4 delivers verify/release nodes.
 
 # Using Skills
 
