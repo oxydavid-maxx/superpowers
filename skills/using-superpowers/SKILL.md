@@ -97,7 +97,7 @@ The response MUST NOT:
 
 The current projection below supersedes any stale evidence paragraph earlier in this section.
 
-`superpower-graph` (spg, `C:\dev\superpower-graph`) is the registered official superpower execution engine (光佑 directive, 2026-07-04; current SPG commit `b6b8ffe`, 2026-07-07; production evidence: `py -3 -m pytest -q` = 712 passed, 1 skipped).
+`superpower-graph` (spg, `C:\dev\superpower-graph`) is the registered official superpower execution engine (光佑 directive, 2026-07-04; current SPG commit `86ba9ec`, 2026-07-08; production evidence: `py -3 -m pytest -q` = 716 passed, 1 skipped).
 
 - Scope today: S0/S1 artifact gates, S2 verification-plan gates, S3 plan coverage, S4 ticket slicing/task loop, owner-matrix projection, rendered-review enforcement, run-level adaptive dispatch via `dispatch-policy.yaml`, Codex/OpenRouter runner selection, budget/cost telemetry, transition-contract lint, and publish/current freshness checks.
 - `S4_BUILD executor` therefore defaults to the spg fleet (`spg intake` / `spg run` / `spg status`) when the task repo is spg-compatible; `current session` remains the fallback executor.
