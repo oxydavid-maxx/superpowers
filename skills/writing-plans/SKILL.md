@@ -18,6 +18,8 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 **Save plans to:** `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md`
 - (User preferences for plan location override this default)
 
+**Rendered review page required:** Any implementation plan Markdown intended for user review MUST also be rendered to a clickable HTML review page with `source-sha256` metadata. When handing off for approval, provide both the raw plan path and the rendered page link. Raw Markdown alone is not valid human-review evidence.
+
 ## Scope Check
 
 If the spec covers multiple independent subsystems, it should have been broken into sub-project specs during brainstorming. If it wasn't, suggest breaking this into separate plans — one per subsystem. Each plan should produce working, testable software on its own.

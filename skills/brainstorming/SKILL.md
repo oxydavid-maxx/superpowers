@@ -137,9 +137,15 @@ After writing the spec document, look at it with fresh eyes:
 Fix any issues inline. No need to re-review — just fix and move on.
 
 **User Review Gate:**
-After the spec review loop passes, ask the user to review the written spec before proceeding:
+After the spec review loop passes, render the written spec into a clickable HTML review page, then ask the user to review that page before proceeding. A raw Markdown path alone is not valid human-review evidence.
 
-> "Spec written and committed to `<path>`. Please review it and let me know if you want to make any changes before we start writing out the implementation plan."
+The review response MUST include:
+
+- Spec source path: `<path>.md`
+- Rendered review page: clickable HTML path/URL
+- Expected mock page/artifact: clickable path/URL
+
+> "Spec written and committed to `<path>`. Rendered review page: `<url-or-html-path>`. Expected mock: `<url-or-html-path>`. Please review it and let me know if you want to make any changes before we start writing out the verification plan."
 
 Wait for the user's response. If they request changes, make them and re-run the spec review loop. Only proceed once the user approves.
 
@@ -238,6 +244,12 @@ For non-UI specs, produce the closest equivalent expected mock artifact:
 - API: request/response payload mock or sequence diagram.
 - Library: public API usage snippet plus expected return/output diagram when helpful.
 - Data/migration/background job: before/after table, state diagram, or PNG/diagram.
+
+## Rendered review artifacts (human review)
+
+Any Markdown file intended for the user to review MUST have a rendered HTML review page. The rendered page must be clickable from the response, must link to the expected mock/review artifacts, and must include a `source-sha256` meta tag for the Markdown source. This applies to Spec Draft, Spec Final, decision logs used as review evidence, and any companion checklist shown for approval.
+
+Raw `.md` paths are source evidence, not human-review evidence. If a gate needs user approval, provide both the source path and the rendered page, and treat raw-MD-only review as incomplete.
 
 Store the artifact path/URL in the spec near the Capability Registry. The verification plan must read this artifact as intent evidence, but it must still derive tests from the Registry acceptance examples.
 

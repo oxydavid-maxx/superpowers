@@ -52,6 +52,7 @@ The response MUST include:
 | Stage | Required skill mapping |
 |---|---|
 | S0_DISCUSS | `superpowers:brainstorming` |
+| S0_INIT_CAPABILITY_MAP | `superpower-graph (spg)` validates `execution-capability-map.json`, `dispatch-policy.yaml`, and declared adapter manifests when present |
 | S1_SPEC_DRAFT | `superpowers:brainstorming` |
 | S1_EXPECTED_MOCK_V1 | `superpowers:brainstorming` |
 | S1_SOTA | `superpowers:brainstorming` + source research/WebSearch |
@@ -70,9 +71,10 @@ The response MUST also state:
 
 - Current state is `S0_DISCUSS`.
 - Current action is requirements clarification only.
-- Owner is `current session`.
+- Owner truth is the SPG owner matrix below; chat text is not an authority for stage advancement.
+- Human-facing review evidence must be rendered/clickable: a raw Markdown path alone is not valid review evidence.
 - `S4_BUILD executor` defaults to the registered engine `superpower-graph (spg)` when the task repo is spg-compatible; otherwise `current session`.
-- Only `S4_BUILD executor` can become external, and only after explicit confirmation before S4_BUILD.
+- Only `S4_BUILD executor` can become an external worker fleet; SPG may still mechanically validate S0/S1/S2/S3/S5/S6 gate artifacts.
 - If the user specifies a Claude web session for S4_BUILD, the orchestrator MUST use that exact visible Claude Code web session through Chrome control. Do not substitute Claude CLI, a new Claude session, or another existing session. If the named session is absent, busy, or cannot be controlled, stop and report the blocker.
 
 The response MUST NOT:
@@ -90,6 +92,40 @@ The response MUST NOT:
 - Scope today: S1→S4 execution — plan intake, ticket slicing, heterogeneous fleet dispatch per `corpus/model-policy.yaml` (commander=fable, coder=codex, cross-family review), escalation ladder, budget fuse, arbitration, and per-station usage accounting (per-LLM calls + wall minutes + tokens; CAP-44, `spg status --costs/--budgets`).
 - `S4_BUILD executor` therefore defaults to the spg fleet (`spg intake` / `spg run` / `spg status`) when the task repo is spg-compatible; `current session` remains the fallback executor.
 - S5/S6 stay on the in-session skills listed above until spg Phase 4 delivers verify/release nodes.
+
+## Registered Superpower Engine Current Projection
+
+The current projection below supersedes any stale evidence paragraph earlier in this section.
+
+`superpower-graph` (spg, `C:\dev\superpower-graph`) is the registered official superpower execution engine (光佑 directive, 2026-07-04; current SPG commit `b6b8ffe`, 2026-07-07; production evidence: `py -3 -m pytest -q` = 712 passed, 1 skipped).
+
+- Scope today: S0/S1 artifact gates, S2 verification-plan gates, S3 plan coverage, S4 ticket slicing/task loop, owner-matrix projection, rendered-review enforcement, run-level adaptive dispatch via `dispatch-policy.yaml`, Codex/OpenRouter runner selection, budget/cost telemetry, transition-contract lint, and publish/current freshness checks.
+- `S4_BUILD executor` therefore defaults to the spg fleet (`spg intake` / `spg run` / `spg status`) when the task repo is spg-compatible; `current session` remains the fallback executor.
+- Run-level `dispatch-policy.yaml` is preferred over static `corpus/model-policy.yaml` for S3/S4 role dispatch. This is the generic platform seam for Codex, OpenRouter, tartus/rescue, GLM-like declared manifests, and future adapters.
+- S5/S6 verification/release skills still provide verifier behavior where graph nodes are not yet fully implemented, but SPG owns transition contracts, owner projection, and release freshness checks.
+
+## SPG Owner Matrix
+
+This table is projected from SPG transition contracts. If it drifts from `C:\dev\superpower-graph`, treat the skill text as stale and refresh the projection before proceeding.
+
+| Stage | Owner | Required Inputs | Signoffs | Validators |
+| --- | --- | --- | --- | --- |
+| S0_DISCUSS | current_session+SPG | clarification-log.json, decision-log.md, issue-coverage.json, material-unknowns.json, stakeholder-needs.json | - | sys1_elicitation_check |
+| S0_INIT_CAPABILITY_MAP | SPG | execution-capability-map.json, dispatch-policy.yaml, adapter-manifests/ | - | capability_manifest_check, dispatch_policy_check |
+| S1_REVIEW | current_session+SPG | expected_mock, meta-verdicts.json, spec-final.md, rendered review artifacts | spec_final | approval_token_check, review_artifacts_check, s1_intake_check |
+| S2_VERIFICATION_PLAN | current_session+SPG | arbiter_session_id, radius_verdict, reviewer_session_id, reviewer_verdict, spec-final.md, test-design.json, tokens/verify_plan_final.json, upheld_ids, verification-sota-verdicts.json | verify_plan_final | corpus_gate_check, prior_handoffs_check, radius_gate_check, reviewer_gate_check, s2_sota_exit_check, verify_plan_final_check |
+| S3_IMPLEMENTATION_PLAN | current_session+SPG | plan_coverage_path, plan_path, test-design.json, rendered plan review page | - | corpus_gate_check, plan_coverage_check, prior_handoffs_check |
+| S4_BUILD | S4 | agent-assignment.json, agent_report_path, branch_diff_path, task_reports | - | prior_handoffs_check, subagent_report_check |
+| S5_VERIFY | S5 | fix-loop request, verify_arch_verdicts, verify_spec_verdicts | - | prior_handoffs_check, verify_spec_route_check |
+| S6_RELEASE | S6 | escape-event gate, inbox gate, mutation verdicts, current pointer metadata, rendered artifact freshness | - | escape_gate_check, inbox_gate_check, mutation_gate_check, prior_handoffs_check |
+
+## Rendered Human Review Artifacts
+
+Any Markdown file intended for 光佑 to review MUST also have a rendered, clickable HTML review page. This includes spec draft/final, S2 verification plan summaries, S3 implementation plans, and decision logs when they are review evidence.
+
+- The response to 光佑 must provide the clickable review page link, not only the raw `.md` path.
+- The rendered page must include a `source-sha256` meta tag for the source artifact and links to required mock/review artifacts.
+- S1/S2 gates reject raw-MD-only evidence when operator approval is required.
 
 # Using Skills
 
