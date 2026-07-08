@@ -87,16 +87,6 @@ The response MUST NOT:
 
 ## Registered Superpower Engine
 
-`superpower-graph` (spg, `C:\dev\superpower-graph`) is the registered official superpower execution engine (光佑 directive, 2026-07-04; Phase 3 production evidence: 558 tests green, verify-arch 16/16 reachable, verify-spec 16/16 MATCHES).
-
-- Scope today: S1→S4 execution — plan intake, ticket slicing, heterogeneous fleet dispatch per `corpus/model-policy.yaml` (commander=fable, coder=codex, cross-family review), escalation ladder, budget fuse, arbitration, and per-station usage accounting (per-LLM calls + wall minutes + tokens; CAP-44, `spg status --costs/--budgets`).
-- `S4_BUILD executor` therefore defaults to the spg fleet (`spg intake` / `spg run` / `spg status`) when the task repo is spg-compatible; `current session` remains the fallback executor.
-- S5/S6 stay on the in-session skills listed above until spg Phase 4 delivers verify/release nodes.
-
-## Registered Superpower Engine Current Projection
-
-The current projection below supersedes any stale evidence paragraph earlier in this section.
-
 `superpower-graph` (spg, `C:\dev\superpower-graph`) is the registered official superpower execution engine (光佑 directive, 2026-07-04; current SPG commit `86ba9ec`, 2026-07-08; production evidence: `py -3 -m pytest -q` = 716 passed, 1 skipped).
 
 - Scope today: S0/S1 artifact gates, S2 verification-plan gates, S3 plan coverage, S4 ticket slicing/task loop, owner-matrix projection, rendered-review enforcement, run-level adaptive dispatch via `dispatch-policy.yaml`, Codex/OpenRouter runner selection, budget/cost telemetry, transition-contract lint, and publish/current freshness checks.
@@ -104,20 +94,53 @@ The current projection below supersedes any stale evidence paragraph earlier in 
 - Run-level `dispatch-policy.yaml` is preferred over static `corpus/model-policy.yaml` for S3/S4 role dispatch. This is the generic platform seam for Codex, OpenRouter, tartus/rescue, GLM-like declared manifests, and future adapters.
 - S5/S6 verification/release skills still provide verifier behavior where graph nodes are not yet fully implemented, but SPG owns transition contracts, owner projection, and release freshness checks.
 
+## Canonical SPG Invocation
+
+When 光佑 wants Superpower Graph, the user should only need to say one of these:
+
+```text
+用 superpower graph 從 S0 開始跑這個 task。
+```
+
+```text
+Use superpower graph from S0 for this task.
+```
+
+Treat that as:
+
+1. Start at `S0_DISCUSS` unless the user gives an existing SPG `run_id` with validated checkpoint receipts.
+2. Use `C:\dev\superpower-graph` as the official engine and transition-contract source.
+3. Use the SPG owner matrix and transition contracts as stage authority; chat text, screenshots, and agent self-report do not advance stages.
+4. For S4-compatible work, default `S4_BUILD executor` to SPG fleet execution; otherwise state the fallback owner explicitly.
+5. Before claiming wiring/completeness, run or inspect the authoritative SPG commands:
+
+```powershell
+cd C:\dev\superpower-graph
+git fetch origin
+git switch main
+git pull --ff-only
+py -3 -m spg.cli contract lint
+py -3 -m spg.cli owner-matrix --md
+```
+
+Authoritative runtime path for `spg run` is `spg/cli.py` -> `spg/graph_exec.py` -> `spg/graph.py` plus `spg/nodes/bodies.py` and `spg/transition_contracts.json`.
+
+Do NOT judge current SPG completeness from `spg/runner.py::_ADVANCE`. That table is a legacy/Phase-1 helper and is not the current CLI runtime path.
+
 ## SPG Owner Matrix
 
 This table is projected from SPG transition contracts. If it drifts from `C:\dev\superpower-graph`, treat the skill text as stale and refresh the projection before proceeding.
 
-| Stage | Owner | Required Inputs | Signoffs | Validators |
-| --- | --- | --- | --- | --- |
-| S0_DISCUSS | current_session+SPG | clarification-log.json, decision-log.md, issue-coverage.json, material-unknowns.json, stakeholder-needs.json | - | sys1_elicitation_check |
-| S0_INIT_CAPABILITY_MAP | SPG | execution-capability-map.json, dispatch-policy.yaml, adapter-manifests/ | - | capability_manifest_check, dispatch_policy_check |
-| S1_REVIEW | current_session+SPG | expected_mock, meta-verdicts.json, spec-final.md, rendered review artifacts | spec_final | approval_token_check, review_artifacts_check, s1_intake_check |
-| S2_VERIFICATION_PLAN | current_session+SPG | arbiter_session_id, radius_verdict, reviewer_session_id, reviewer_verdict, spec-final.md, test-design.json, tokens/verify_plan_final.json, upheld_ids, verification-sota-verdicts.json | verify_plan_final | corpus_gate_check, prior_handoffs_check, radius_gate_check, reviewer_gate_check, s2_sota_exit_check, verify_plan_final_check |
-| S3_IMPLEMENTATION_PLAN | current_session+SPG | plan_coverage_path, plan_path, test-design.json, rendered plan review page | - | corpus_gate_check, plan_coverage_check, prior_handoffs_check |
-| S4_BUILD | S4 | agent-assignment.json, agent_report_path, branch_diff_path, task_reports | - | prior_handoffs_check, subagent_report_check |
-| S5_VERIFY | S5 | fix-loop request, verify_arch_verdicts, verify_spec_verdicts | - | prior_handoffs_check, verify_spec_route_check |
-| S6_RELEASE | S6 | escape-event gate, inbox gate, mutation verdicts, current pointer metadata, rendered artifact freshness | - | escape_gate_check, inbox_gate_check, mutation_gate_check, prior_handoffs_check |
+| Stage | Owner | Sources | Required Inputs | Signoffs | Validators |
+| --- | --- | --- | --- | --- | --- |
+| S0_DISCUSS | current_session+SPG | S0_discuss_gate | clarification-log.json, decision-log.md, issue-coverage.json, material-unknowns.json, stakeholder-needs.json | - | sys1_elicitation_check |
+| S0_INIT_CAPABILITY_MAP | SPG | - | execution-capability-map.json, dispatch-policy.yaml, adapter-manifests/ | - | capability_manifest_check, dispatch_policy_check |
+| S1_REVIEW | current_session+SPG | S1_spec_gate | expected_mock, meta-verdicts.json, spec-final.md | spec_final | approval_token_check, review_artifacts_check, s1_intake_check |
+| S2_VERIFICATION_PLAN | current_session+SPG | S2_test_designer, S2_radius_gate, S2_reviewer, S2_arbiter, S2_verify_plan_gate | arbiter_session_id, radius_verdict, reviewer_session_id, reviewer_verdict, spec-final.md, test-design.json, tokens/verify_plan_final.json, upheld_ids, verification-sota-verdicts.json | verify_plan_final | corpus_gate_check, no_op_transition_check, prior_handoffs_check, radius_gate_check, reviewer_gate_check, s2_sota_exit_check, verify_plan_final_check |
+| S3_IMPLEMENTATION_PLAN | current_session+SPG | S3_planner, S3_plan_coverage_gate | plan_coverage_path, plan_path, test-design.json | - | corpus_gate_check, plan_coverage_check, prior_handoffs_check |
+| S4_BUILD | S4 | S4_executor, S4_task_loop | agent-assignment.json, agent_report_path, branch_diff_path, task_reports | - | prior_handoffs_check, subagent_report_check |
+| S5_VERIFY | S5 | S5_verify_arch, S5_verify_spec, S5_fix_loop | case-outcomes.json, fix-loop request, s5-verdict.json, test-design.json, verify_arch_verdicts, verify_spec_verdicts | - | case_ledger_check, no_op_transition_check, prior_handoffs_check, s5_case_ledger_freshness_check, verify_spec_route_check |
+| S6_RELEASE | S6 | S6_release_gate | case-outcomes.json, escape-event gate, inbox gate, mutation verdicts, s5-verdict.json, test-design.json | - | escape_gate_check, inbox_gate_check, mutation_gate_check, prior_handoffs_check, s5_case_ledger_freshness_check |
 
 ## Rendered Human Review Artifacts
 
