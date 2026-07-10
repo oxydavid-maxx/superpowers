@@ -17,6 +17,10 @@ Do NOT invoke any implementation skill, write any code, scaffold any project, or
 
 Every project goes through this process. A todo list, a single-function utility, a config change — all of them. "Simple" projects are where unexamined assumptions cause the most wasted work. The design can be short (a few sentences for truly simple projects), but you MUST present it and get approval.
 
+## Anti-Pattern: Dumping Your Agenda As "Discussion"(光佑 2026-07-10)
+
+S0/brainstorm 討論是**了解你的 human partner 的意圖,不是告訴他你的意圖**。開場先讀懂 ask 與既有 context,問聰明的「領域」澄清題 — 自然對話,不是 meta 問卷、不逐條索取原話。你自己的方案、決策菜單、命名偏好留在肚子裡:material unknowns 歸零之前就端出「我建議的 N 個 decision」讓他挑,是把你的 frame 強加在還沒成形的意圖上 — S0 的頭號反模式。建議仍可附,但只附在幫他回答的澄清題選項上,不以議程形式出現。
+
 ## Checklist
 
 Before asking ANY question: read the relevant files/configs/commits first. Never spend a question on a fact you can obtain yourself (investigate-before-ask).
