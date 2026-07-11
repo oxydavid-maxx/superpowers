@@ -21,6 +21,12 @@ Every project goes through this process. A todo list, a single-function utility,
 
 S0/brainstorm 討論是**了解你的 human partner 的意圖,不是告訴他你的意圖**。開場先讀懂 ask 與既有 context,問聰明的「領域」澄清題 — 自然對話,不是 meta 問卷、不逐條索取原話。你自己的方案、決策菜單、命名偏好留在肚子裡:material unknowns 歸零之前就端出「我建議的 N 個 decision」讓他挑,是把你的 frame 強加在還沒成形的意圖上 — S0 的頭號反模式。建議仍可附,但只附在幫他回答的澄清題選項上,不以議程形式出現。
 
+## SPG S0_DISCUSS station
+
+When this skill runs as SPG `S0_DISCUSS`, start the session with `spg start`. Exhaustively elicit stakeholder needs, resolve material unknowns, and record the session's needs, unknowns, decisions, clarifications, and issue coverage in `stakeholder-needs.json`, `material-unknowns.json`, `decision-log.md`, `clarification-log.json`, and `issue-coverage.json`; include digests for each emitted artifact. Finish the station with `spg s0-check <run_dir>`.
+
+On re-entry, append only to `clarification-log.json` and `decision-log.md`; token-bound artifacts must not be mutated. Maintain exactly one cumulative handoff per run/session: place it under the run's `handoffs/`, use a filename containing the session name and creation date, and update that same document at each completed station. The handoff is ignored with the run and records the current station, next three stations, outputs/digests, remaining work, and takeover instructions.
+
 ## Checklist
 
 Before asking ANY question: read the relevant files/configs/commits first. Never spend a question on a fact you can obtain yourself (investigate-before-ask).

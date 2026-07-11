@@ -27,6 +27,11 @@ $brainstorming = Get-Content -Raw -LiteralPath (Join-Path $Root "skills\brainsto
 Assert-Contains $brainstorming "expected mock v1" "brainstorming must require expected mock v1 after Spec Draft"
 Assert-Contains $brainstorming "expected mock v2" "brainstorming must require expected mock v2 after Spec Final"
 Assert-Contains $brainstorming "non-UI" "brainstorming mock policy must cover non-UI specs"
+Assert-Contains $brainstorming "S0_DISCUSS" "brainstorming must define the SPG S0_DISCUSS station"
+Assert-Contains $brainstorming "stakeholder-needs\.json" "S0_DISCUSS must emit stakeholder-needs.json"
+Assert-Contains $brainstorming "material-unknowns\.json" "S0_DISCUSS must emit material-unknowns.json"
+Assert-Contains $brainstorming "token-bound" "S0_DISCUSS must preserve token-bound artifacts on re-entry"
+Assert-Contains $brainstorming "cumulative handoff" "S0_DISCUSS must maintain one cumulative handoff"
 
 $usingSuperpowers = Get-Content -Raw -LiteralPath (Join-Path $Root "skills\using-superpowers\SKILL.md")
 Assert-Contains $usingSuperpowers "complete stage-order" "using-superpowers must require a complete stage-order recap"
