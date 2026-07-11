@@ -70,11 +70,44 @@ Assert-Contains $brainstorming "session.*created.*now.*next.*remaining work.*tak
 Assert-Contains $brainstorming "handoffs/YYYY-MM-DD--<session-name>--handoff\.md" "handoff filename must be deterministic"
 Assert-Contains $brainstorming "lowercase hyphen slug" "handoff session names must be sanitized deterministically"
 Assert-Contains $brainstorming "exactly one" "handoff contract must forbid one-file-per-station output"
-Assert-Contains $brainstorming "runs/.*ignored.*before.*handoff" "S0 must verify runs/ is ignored before writing handoff"
+Assert-Contains $brainstorming "git check-ignore -q <run_dir>" "S0 must verify the target run is ignored before writing handoff"
 Assert-Contains $brainstorming "none of the bound files may be overwritten" "token-bound artifacts must be immutable after token issuance"
 Assert-Contains $brainstorming "append.*clarification-log\.json.*decision-log\.md" "re-entry may append only the two mutable logs"
 Assert-Contains $brainstorming "re-run approval/binding" "changed mutable-log digests must invalidate the old token"
 Assert-Contains $brainstorming "next three stations" "handoff must list exactly three ordered next stations when available"
+
+function Assert-S0ContractComplete {
+  param([string]$Text)
+  $match = [regex]::Match($Text, "(?s)## SPG S0_DISCUSS station\s+(.*?)\s+## Checklist")
+  if (-not $match.Success) { throw "S0_DISCUSS must be one bounded contract section" }
+  $section = $match.Groups[1].Value
+  foreach ($required in @(
+    "spg start <topic> --dir <project>",
+    "S0_ARTIFACTS = [stakeholder-needs.json, material-unknowns.json, decision-log.md, clarification-log.json, issue-coverage.json, dispatch-policy.yaml, spec-draft0.md, mock-v0/index.html, elicitation-critic.json, critic-dispatch-r1.json]",
+    "TOKEN_BOUND = [stakeholder-needs.json, material-unknowns.json, decision-log.md, clarification-log.json, dispatch-policy.yaml, spec-draft0.md, mock-v0/index.html, elicitation-critic.json, critic-dispatch-r1.json]",
+    "git check-ignore -q <run_dir>",
+    "handoffs/YYYY-MM-DD--<session-name>--handoff.md",
+    "session | created | now | next | remaining work | takeover instructions",
+    "spg s0-check <run_dir>"
+  )) {
+    if (-not $section.Contains($required)) { throw "S0_DISCUSS bounded contract missing: $required" }
+  }
+}
+
+Assert-S0ContractComplete $brainstorming
+foreach ($required in @(
+  "spg start <topic> --dir <project>",
+  "S0_ARTIFACTS = [stakeholder-needs.json, material-unknowns.json, decision-log.md, clarification-log.json, issue-coverage.json, dispatch-policy.yaml, spec-draft0.md, mock-v0/index.html, elicitation-critic.json, critic-dispatch-r1.json]",
+  "TOKEN_BOUND = [stakeholder-needs.json, material-unknowns.json, decision-log.md, clarification-log.json, dispatch-policy.yaml, spec-draft0.md, mock-v0/index.html, elicitation-critic.json, critic-dispatch-r1.json]",
+  "git check-ignore -q <run_dir>",
+  "handoffs/YYYY-MM-DD--<session-name>--handoff.md",
+  "session | created | now | next | remaining work | takeover instructions",
+  "spg s0-check <run_dir>"
+)) {
+  $failed = $false
+  try { Assert-S0ContractComplete ($brainstorming.Replace($required, "")) } catch { $failed = $true }
+  if (-not $failed) { throw "S0 contract mutation survived removal: $required" }
+}
 
 $usingSuperpowers = Get-Content -Raw -LiteralPath (Join-Path $Root "skills\using-superpowers\SKILL.md")
 Assert-Contains $usingSuperpowers "complete stage-order" "using-superpowers must require a complete stage-order recap"
