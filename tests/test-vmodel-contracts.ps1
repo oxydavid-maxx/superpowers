@@ -33,6 +33,49 @@ Assert-Contains $brainstorming "material-unknowns\.json" "S0_DISCUSS must emit m
 Assert-Contains $brainstorming "token-bound" "S0_DISCUSS must preserve token-bound artifacts on re-entry"
 Assert-Contains $brainstorming "cumulative handoff" "S0_DISCUSS must maintain one cumulative handoff"
 
+# --- Task 5 S0 handoff contract: structural assertions, not prose-only presence ---
+Assert-Contains $brainstorming "spg start <topic> --dir <project>" "S0_DISCUSS must provide the exact spg start command"
+Assert-Contains $brainstorming "spg s0-check <run_dir>" "S0_DISCUSS must provide the exact s0-check command"
+foreach ($artifact in @(
+  "stakeholder-needs\.json",
+  "material-unknowns\.json",
+  "decision-log\.md",
+  "clarification-log\.json",
+  "issue-coverage\.json",
+  "dispatch-policy\.yaml",
+  "spec-draft0\.md",
+  "mock-v0/index\.html",
+  "elicitation-critic\.json",
+  "critic-dispatch-r1\.json"
+)) {
+  Assert-Contains $brainstorming $artifact "S0 artifact list must include $artifact"
+}
+foreach ($bound in @(
+  "stakeholder-needs\.json",
+  "material-unknowns\.json",
+  "decision-log\.md",
+  "clarification-log\.json",
+  "dispatch-policy\.yaml",
+  "spec-draft0\.md",
+  "mock-v0/index\.html",
+  "elicitation-critic\.json",
+  "critic-dispatch-r1\.json"
+)) {
+  Assert-Contains $brainstorming $bound "token-bound list must include $bound"
+}
+Assert-Contains $brainstorming "Get-FileHash.*-Algorithm SHA256" "S0 approval must compute SHA-256 digests"
+Assert-Contains $brainstorming "path -> sha256" "handoff must use the sorted path -> sha256 table"
+Assert-Contains $brainstorming "stakeholder-needs\.json.*material-unknowns\.json.*decision-log\.md" "S0 schema must identify the emitted artifact fields"
+Assert-Contains $brainstorming "session.*created.*now.*next.*remaining work.*takeover instructions" "handoff schema must contain fixed fields in order"
+Assert-Contains $brainstorming "handoffs/YYYY-MM-DD--<session-name>--handoff\.md" "handoff filename must be deterministic"
+Assert-Contains $brainstorming "lowercase hyphen slug" "handoff session names must be sanitized deterministically"
+Assert-Contains $brainstorming "exactly one" "handoff contract must forbid one-file-per-station output"
+Assert-Contains $brainstorming "runs/.*ignored.*before.*handoff" "S0 must verify runs/ is ignored before writing handoff"
+Assert-Contains $brainstorming "none of the bound files may be overwritten" "token-bound artifacts must be immutable after token issuance"
+Assert-Contains $brainstorming "append.*clarification-log\.json.*decision-log\.md" "re-entry may append only the two mutable logs"
+Assert-Contains $brainstorming "re-run approval/binding" "changed mutable-log digests must invalidate the old token"
+Assert-Contains $brainstorming "next three stations" "handoff must list exactly three ordered next stations when available"
+
 $usingSuperpowers = Get-Content -Raw -LiteralPath (Join-Path $Root "skills\using-superpowers\SKILL.md")
 Assert-Contains $usingSuperpowers "complete stage-order" "using-superpowers must require a complete stage-order recap"
 Assert-Contains $usingSuperpowers "S0_DISCUSS" "using-superpowers must name S0_DISCUSS"

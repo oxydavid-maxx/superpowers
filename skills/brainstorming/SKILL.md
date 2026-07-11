@@ -23,9 +23,19 @@ S0/brainstorm 討論是**了解你的 human partner 的意圖,不是告訴他你
 
 ## SPG S0_DISCUSS station
 
-When this skill runs as SPG `S0_DISCUSS`, start the session with `spg start`. Exhaustively elicit stakeholder needs, resolve material unknowns, and record the session's needs, unknowns, decisions, clarifications, and issue coverage in `stakeholder-needs.json`, `material-unknowns.json`, `decision-log.md`, `clarification-log.json`, and `issue-coverage.json`; include digests for each emitted artifact. Finish the station with `spg s0-check <run_dir>`.
+When this skill runs as SPG `S0_DISCUSS`, use these exact commands and artifacts:
 
-On re-entry, append only to `clarification-log.json` and `decision-log.md`; token-bound artifacts must not be mutated. Maintain exactly one cumulative handoff per run/session: place it under the run's `handoffs/`, use a filename containing the session name and creation date, and update that same document at each completed station. The handoff is ignored with the run and records the current station, next three stations, outputs/digests, remaining work, and takeover instructions.
+```text
+spg start <topic> --dir <project>
+S0_ARTIFACTS = [stakeholder-needs.json, material-unknowns.json, decision-log.md, clarification-log.json, issue-coverage.json, dispatch-policy.yaml, spec-draft0.md, mock-v0/index.html, elicitation-critic.json, critic-dispatch-r1.json]
+TOKEN_BOUND = [stakeholder-needs.json, material-unknowns.json, decision-log.md, clarification-log.json, dispatch-policy.yaml, spec-draft0.md, mock-v0/index.html, elicitation-critic.json, critic-dispatch-r1.json]
+```
+
+Exhaustively elicit stakeholder needs, resolve every material unknown, and write the S0 artifact list above with the required schemas: `stakeholder-needs.json` rows are `{need_id, stakeholder, need, acceptance_signal}`; `material-unknowns.json` rows are `{id, question, status}` with every status `resolved`; `issue-coverage.json` records every issue and its trace; `decision-log.md` is append-only; `clarification-log.json` is append-only. `dispatch-policy.yaml`, `spec-draft0.md`, `mock-v0/index.html`, `elicitation-critic.json`, and `critic-dispatch-r1.json` are required S0 outputs, not optional prose. Finish with the exact command `spg s0-check <run_dir>`.
+
+Before approval, verify `runs/` is ignored before writing handoff; refuse and diagnose if it is not. For every produced S0 artifact, run `Get-FileHash -Algorithm SHA256`, then record one sorted `path -> sha256` table in the single handoff. The fixed handoff fields, in order, are `session | created | now | next | remaining work | takeover instructions`. Create exactly one cumulative handoff per run/session at `handoffs/YYYY-MM-DD--<session-name>--handoff.md`; sanitize `<session-name>` to a lowercase hyphen slug, fix `created` at first creation, and find/update that same file on every completed station. `next` contains the next three stations exactly, in order, or all remaining stations if fewer.
+
+After token issuance, none of the bound files may be overwritten. On re-entry, append only to `clarification-log.json` and `decision-log.md`; do not rewrite or replace any token-bound artifact. If either mutable log changes its digest, re-run approval/binding before continuing: the old token is invalid and must not be treated as valid. The handoff lives under the run's `handoffs/` and is ignored with the run.
 
 ## Checklist
 
