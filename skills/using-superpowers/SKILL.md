@@ -136,7 +136,7 @@ This table is projected from SPG transition contracts. If it drifts from `C:\dev
 | S0_DISCUSS | current_session+SPG | S0_discuss_gate | clarification-log.json, decision-log.md, issue-coverage.json, material-unknowns.json, stakeholder-needs.json | - | sys1_elicitation_check |
 | S0_INIT_CAPABILITY_MAP | SPG | - | execution-capability-map.json, dispatch-policy.yaml, adapter-manifests/ | - | capability_manifest_check, dispatch_policy_check |
 | S1_REVIEW | current_session+SPG | S1_spec_gate | expected_mock, meta-verdicts.json, spec-final.md | spec_final | approval_token_check, review_artifacts_check, s1_intake_check |
-| S2_VERIFICATION_PLAN | current_session+SPG | S2_test_designer, S2_radius_gate, S2_reviewer, S2_arbiter, S2_verify_plan_gate | arbiter_session_id, radius_verdict, reviewer_session_id, reviewer_verdict, spec-final.md, test-design.json, tokens/verify_plan_final.json, upheld_ids, verification-sota-verdicts.json | verify_plan_final | corpus_gate_check, no_op_transition_check, prior_handoffs_check, radius_gate_check, reviewer_gate_check, s2_sota_exit_check, verify_plan_final_check |
+| S2_VERIFICATION_PLAN | current_session+SPG | S2_test_designer, S2_radius_gate, S2_reviewer, S2_arbiter, S2_verify_plan_gate | arbiter_session_id, radius_verdict, reviewer_session_id, reviewer_verdict, spec-final.md, test-design.json, upheld_ids, verification-sota-verdicts.json | - | corpus_gate_check, prior_handoffs_check, radius_gate_check, reviewer_gate_check, s2_sota_exit_check |
 | S3_IMPLEMENTATION_PLAN | current_session+SPG | S3_planner, S3_plan_coverage_gate | plan_coverage_path, plan_path, test-design.json | - | corpus_gate_check, plan_coverage_check, prior_handoffs_check |
 | S4_BUILD | S4 | S4_executor, S4_task_loop | agent-assignment.json, agent_report_path, branch_diff_path, task_reports | - | prior_handoffs_check, subagent_report_check |
 | S5_VERIFY | S5 | S5_verify_arch, S5_verify_spec, S5_fix_loop | case-outcomes.json, fix-loop request, s5-verdict.json, test-design.json, verify_arch_verdicts, verify_spec_verdicts | - | case_ledger_check, no_op_transition_check, prior_handoffs_check, s5_case_ledger_freshness_check, verify_spec_route_check |
@@ -148,7 +148,9 @@ Any Markdown file intended for 光佑 to review MUST also have a rendered, click
 
 - The response to 光佑 must provide the clickable review page link, not only the raw `.md` path.
 - The rendered page must include a `source-sha256` meta tag for the source artifact and links to required mock/review artifacts.
-- S1/S2 gates reject raw-MD-only evidence when operator approval is required.
+- The only human gates are `S0_APPROVE` and `S1_APPROVE`. S2 and S3 are mechanical
+  controller gates and must never request or consume a human approval token.
+- S0/S1 gates reject raw-MD-only evidence when operator approval is required.
 
 # Using Skills
 
