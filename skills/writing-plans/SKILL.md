@@ -170,6 +170,13 @@ The PostToolUse `executor_select` hook writes a `## Recommended executor: <X>` b
 **If the block says `workflow` (many independent, parallelizable tasks):**
 - Hand off to the `/workflow` tool — deterministic background orchestration with native parallel fan-out and journal+resume.
 
+## SPG Lifecycle Authority
+
+When this plan runs under SPG, only `S0_APPROVE` and `S1_APPROVE` are human approval
+gates. `S2`–`S6`, including `S3_IMPLEMENTATION_PLAN`, are mechanical evidence gates:
+do not request or consume `plan_approval`, `executor_confirm`, or any other human token
+for S3 planning.
+
 ## External S4 Builder Handoff SOP
 
 External delegation is allowed only for `S4_BUILD`. The orchestrator remains owner of S0-S3, independent S5 verification, fix pushback, release, and push.
