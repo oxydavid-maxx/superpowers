@@ -41,7 +41,7 @@ If CLAUDE.md, GEMINI.md, or AGENTS.md says "don't use TDD" and a skill says "alw
 
 ## Platform Adaptation
 
-Skills speak in actions ("dispatch a subagent", "create a todo", "read a file") rather than naming any one runtime's tools. For per-platform tool equivalents and instructions-file conventions, see [claude-code-tools.md](references/claude-code-tools.md), [codex-tools.md](references/codex-tools.md), [copilot-tools.md](references/copilot-tools.md), [gemini-tools.md](references/gemini-tools.md), [pi-tools.md](references/pi-tools.md), and [antigravity-tools.md](references/antigravity-tools.md). Gemini CLI users get the tool mapping loaded automatically via GEMINI.md.
+Skills define outcomes, artifacts, gates, and proof without choosing a model, thread, or worker identity. The current host session uses its native tools. Optional collaboration skills run only on an explicit user request. For per-platform tool equivalents and instructions-file conventions, see [claude-code-tools.md](references/claude-code-tools.md), [codex-tools.md](references/codex-tools.md), [copilot-tools.md](references/copilot-tools.md), [gemini-tools.md](references/gemini-tools.md), [pi-tools.md](references/pi-tools.md), and [antigravity-tools.md](references/antigravity-tools.md).
 
 ## Superpower Entry Comprehension Gate
 
@@ -49,50 +49,50 @@ When the user explicitly says "use superpower", "superpower", "superpower fork",
 
 The response MUST include:
 
-| Stage | Required skill mapping |
+| Stage | Required skill / authority |
 |---|---|
-| S0_DISCUSS | `superpowers:brainstorming` |
-| S0_INIT_CAPABILITY_MAP | `superpower-graph (spg)` validates `execution-capability-map.json`, `dispatch-policy.yaml`, and declared adapter manifests when present |
-| S1_SPEC_DRAFT | `superpowers:brainstorming` |
-| S1_EXPECTED_MOCK_V1 | `superpowers:brainstorming` |
-| S1_SOTA | `superpowers:brainstorming` + source research/WebSearch |
-| S1_REVISE_DISCUSS | `superpowers:brainstorming` |
-| S1_SPEC_FINAL | `superpowers:brainstorming` |
-| S1_EXPECTED_MOCK_V2 | `superpowers:brainstorming` |
-| S2_VERIFICATION_PLAN | `superpowers:writing-verification-plans` |
+| S0_DISCUSS | `superpowers:brainstorming` — stakeholder needs, material unknowns, issue coverage, decision/clarification logs |
+| S0_DRAFT0 | `superpowers:brainstorming` — typed first specification draft |
+| S0_MOCK0 | `superpowers:brainstorming` — expected mock / non-UI equivalent |
+| S0_APPROVE | SPG digest-bound human approval |
+| S0_SOTA | `superpowers:brainstorming` + source research |
+| S1_DISCUSS | `superpowers:brainstorming` — fold prior art back into discussion |
+| S1_DRAFT1 | `superpowers:brainstorming` — final capability registry and traceability |
+| S1_MOCK1 | `superpowers:brainstorming` — final expected mock / non-UI equivalent |
+| S1_APPROVE | SPG digest-bound human approval |
+| S2_TEST_DESIGN_REVIEW | `superpowers:writing-verification-plans` |
 | S3_IMPLEMENTATION_PLAN | `superpowers:writing-plans` |
-| S4_BUILD | registered engine `superpower-graph (spg)` fleet execution (see Registered Superpower Engine); in-session fallback: `superpowers:executing-plans`, `superpowers:test-driven-development`, or `superpowers:subagent-driven-development` as applicable |
+| S4_BUILD | current host session, host-native implementation and focused TDD |
 | S5_VERIFY_ARCH | `superpowers:verify-arch`, only for multi-entry projects |
 | S5_VERIFY_SPEC | `superpowers:verify-spec` |
-| S5_FIX_LOOP | `superpowers:systematic-debugging` plus repeat S4/S5 |
+| S5_FIX_LOOP | `superpowers:systematic-debugging` + affected proof pack |
 | S6_RELEASE | `superpowers:verification-before-completion` + `superpowers:finishing-a-development-branch` |
 
 The response MUST also state:
 
 - Current state is `S0_DISCUSS`.
 - Current action is requirements clarification only.
-- Owner truth is the SPG owner matrix below; chat text is not an authority for stage advancement.
-- Human-facing review evidence must be rendered/clickable: a raw Markdown path alone is not valid review evidence.
-- `S4_BUILD executor` defaults to the registered engine `superpower-graph (spg)` when the task repo is spg-compatible; otherwise `current session`.
-- Only `S4_BUILD executor` can become an external worker fleet; SPG may still mechanically validate S0/S1/S2/S3/S5/S6 gate artifacts.
-- If the user specifies a Claude web session for S4_BUILD, the orchestrator MUST use that exact visible Claude Code web session through Chrome control. Do not substitute Claude CLI, a new Claude session, or another existing session. If the named session is absent, busy, or cannot be controlled, stop and report the blocker.
+- SPG receipts and transition contracts are lifecycle authority; chat text is not stage-advance evidence.
+- The only human approval gates are `S0_APPROVE` and `S1_APPROVE`.
+- Human review evidence is rendered and clickable; a raw Markdown path alone is invalid.
+- The current host session owns S2–S6 execution natively. SPG validates evidence but does not choose a model, manufacture a thread, or require an external worker.
 
 The response MUST NOT:
 
 - Only paste fixed boilerplate.
-- Hardcode Codex or Claude as the default owner.
-- Ask for an external session before S4_BUILD.
-- Treat "Claude Code" or "Claude CLI" as equivalent to a user-specified Claude web session.
+- Hardcode Codex, Claude, a model tier, a thread, or an external worker as the default owner.
+- Ask for an external session as part of the lifecycle.
 - Write a spec, plan, or code before S0_DISCUSS is complete.
 
 ## Registered Superpower Engine
 
-`superpower-graph` (spg, `C:\dev\superpower-graph`) is the registered official superpower execution engine (光佑 directive, 2026-07-04; current SPG commit `86ba9ec`, 2026-07-08; production evidence: `py -3 -m pytest -q` = 716 passed, 1 skipped).
+`superpower-graph` (SPG, `C:\dev\superpower-graph`) is the lifecycle and typed
+artifact authority. Its production role is S0/S1 discussion/specification handshakes,
+the two digest-bound approvals, and mechanical evidence contracts through S2–S6.
 
-- Scope today: S0/S1 artifact gates, S2 verification-plan gates, S3 plan coverage, S4 ticket slicing/task loop, owner-matrix projection, rendered-review enforcement, run-level adaptive dispatch via `dispatch-policy.yaml`, Codex/OpenRouter runner selection, budget/cost telemetry, transition-contract lint, and publish/current freshness checks.
-- `S4_BUILD executor` therefore defaults to the spg fleet (`spg intake` / `spg run` / `spg status`) when the task repo is spg-compatible; `current session` remains the fallback executor.
-- Run-level `dispatch-policy.yaml` is preferred over static `corpus/model-policy.yaml` for S3/S4 role dispatch. This is the generic platform seam for Codex, OpenRouter, tartus/rescue, GLM-like declared manifests, and future adapters.
-- S5/S6 verification/release skills still provide verifier behavior where graph nodes are not yet fully implemented, but SPG owns transition contracts, owner projection, and release freshness checks.
+Normal execution is host-native: the current host session owns the complete candidate
+and may use its native delegation only when it judges a disjoint complete lane useful.
+SPG does not select a model, start one runner per station, or require a worker/thread.
 
 ## Canonical SPG Invocation
 
@@ -108,39 +108,27 @@ Use superpower graph from S0 for this task.
 
 Treat that as:
 
-1. Start at `S0_DISCUSS` unless the user gives an existing SPG `run_id` with validated checkpoint receipts.
-2. Use `C:\dev\superpower-graph` as the official engine and transition-contract source.
-3. Use the SPG owner matrix and transition contracts as stage authority; chat text, screenshots, and agent self-report do not advance stages.
-4. For S4-compatible work, default `S4_BUILD executor` to SPG fleet execution; otherwise state the fallback owner explicitly.
-5. Before claiming wiring/completeness, run or inspect the authoritative SPG commands:
+1. Start at `S0_DISCUSS` unless the user supplies a validated SPG run receipt.
+2. Use `C:\dev\superpower-graph` as the lifecycle and transition-contract source.
+3. Keep S0/S1 in the current host session and submit typed completion payloads to SPG.
+4. Continue S2–S6 in the current host session with the canonical quality skills; SPG validates their evidence mechanically.
+5. Inspect authority with the focused commands below; do not update or switch the repository implicitly:
 
 ```powershell
 cd C:\dev\superpower-graph
-git fetch origin
-git switch main
-git pull --ff-only
 py -3 -m spg.cli contract lint
 py -3 -m spg.cli owner-matrix --md
 ```
 
-Authoritative runtime path for `spg run` is `spg/cli.py` -> `spg/graph_exec.py` -> `spg/graph.py` plus `spg/nodes/bodies.py` and `spg/transition_contracts.json`.
+Authoritative runtime pathAuthoritative runtime path for `spg run` is `spg/cli.py` -> `spg/graph_exec.py` -> `spg/graph.py` plus `spg/nodes/bodies.py` and `spg/transition_contracts.json`.
 
 Do NOT judge current SPG completeness from `spg/runner.py::_ADVANCE`. That table is a legacy/Phase-1 helper and is not the current CLI runtime path.
 
 ## SPG Owner Matrix
 
-This table is projected from SPG transition contracts. If it drifts from `C:\dev\superpower-graph`, treat the skill text as stale and refresh the projection before proceeding.
-
-| Stage | Owner | Sources | Required Inputs | Signoffs | Validators |
-| --- | --- | --- | --- | --- | --- |
-| S0_DISCUSS | current_session+SPG | S0_discuss_gate | clarification-log.json, decision-log.md, issue-coverage.json, material-unknowns.json, stakeholder-needs.json | - | sys1_elicitation_check |
-| S0_INIT_CAPABILITY_MAP | SPG | - | execution-capability-map.json, dispatch-policy.yaml, adapter-manifests/ | - | capability_manifest_check, dispatch_policy_check |
-| S1_REVIEW | current_session+SPG | S1_spec_gate | expected_mock, meta-verdicts.json, spec-final.md | spec_final | approval_token_check, review_artifacts_check, s1_intake_check |
-| S2_VERIFICATION_PLAN | current_session+SPG | S2_test_designer, S2_radius_gate, S2_reviewer, S2_arbiter, S2_verify_plan_gate | arbiter_session_id, radius_verdict, reviewer_session_id, reviewer_verdict, spec-final.md, test-design.json, upheld_ids, verification-sota-verdicts.json | - | corpus_gate_check, prior_handoffs_check, radius_gate_check, reviewer_gate_check, s2_sota_exit_check |
-| S3_IMPLEMENTATION_PLAN | current_session+SPG | S3_planner, S3_plan_coverage_gate | plan_coverage_path, plan_path, test-design.json | - | corpus_gate_check, plan_coverage_check, prior_handoffs_check |
-| S4_BUILD | S4 | S4_executor, S4_task_loop | agent-assignment.json, agent_report_path, branch_diff_path, task_reports | - | prior_handoffs_check, subagent_report_check |
-| S5_VERIFY | S5 | S5_verify_arch, S5_verify_spec, S5_fix_loop | case-outcomes.json, fix-loop request, s5-verdict.json, test-design.json, verify_arch_verdicts, verify_spec_verdicts | - | case_ledger_check, no_op_transition_check, prior_handoffs_check, s5_case_ledger_freshness_check, verify_spec_route_check |
-| S6_RELEASE | S6 | S6_release_gate | case-outcomes.json, escape-event gate, inbox gate, mutation verdicts, s5-verdict.json, test-design.json | - | escape_gate_check, inbox_gate_check, mutation_gate_check, prior_handoffs_check, s5_case_ledger_freshness_check |
+Do not embed a copied owner matrix in this skill. It becomes stale. Query the live
+transition-contract projection with `py -3 -m spg.cli owner-matrix --md`; that output and
+the bound ControlStore receipt govern stage ownership and required evidence.
 
 ## Rendered Human Review Artifacts
 

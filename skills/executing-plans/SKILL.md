@@ -1,21 +1,15 @@
 ---
 name: executing-plans
-description: Use when you have a written implementation plan to execute in a separate session with review checkpoints
+description: Use when an approved implementation plan must be executed by the current native owner into one complete release candidate
 ---
 
 # Executing Plans
 
 ## Overview
 
-Load plan, review critically, execute all tasks, report when complete.
+Load the approved plan, own the full implement → focused-test → fix loop, assemble one complete release candidate, then report.
 
 **Announce at start:** "I'm using the executing-plans skill to implement this plan."
-
-**Note:** Tell your human partner that Superpowers works much better with access to subagents. The quality of its work will be significantly higher if run on a platform with subagent support (Claude Code, Codex CLI, Codex App, Copilot CLI, and Gemini CLI all qualify; see the per-platform tool refs in `../using-superpowers/references/`). If subagents are available, use superpowers:subagent-driven-development instead of this skill.
-
-## External S4 Builder Contract
-
-When this skill is invoked by an orchestrator as `S4_BUILD`, execute only the local `jobs/*.json` received from the orchestrator. The job must name the user-specified Claude web session in `builder_session`; do not reinterpret the assignment as permission to switch to Claude CLI, create a new session, or use another session. If the job omits `builder_session`, points to a different session, or asks for forbidden files, stop and report the blocker in the outbox instead of implementing.
 
 ## The Process
 
@@ -25,30 +19,31 @@ When this skill is invoked by an orchestrator as `S4_BUILD`, execute only the lo
 3. If concerns: Raise them with your human partner before starting
 4. If no concerns: Create todos for the plan items and proceed
 
-### Step 2: Execute Tasks
+### Step 2: Execute the Complete Candidate
 
-For each task:
-1. Mark as in_progress
-2. Follow each step exactly (plan has bite-sized steps)
-3. Run verifications as specified
-4. Mark as completed
+For each cohesive outcome task:
+1. Mark it in progress.
+2. Run its exact T0 counterexample.
+3. Implement, run T1, and fix until the focused proof is green.
+4. Keep ownership in this session and mark the outcome complete.
+
+Do not open partial review loops between tasks and do not rerun the repository full
+suite during fix loops. Continue until every planned outcome is assembled in one
+complete release candidate.
 
 ### Step 3: Complete Development
 
-After all tasks complete and verified:
-- Announce: "I'm using the finishing-a-development-branch skill to complete this work."
-- **REQUIRED SUB-SKILL:** Use superpowers:finishing-a-development-branch
-- Follow that skill to verify tests, present options, execute choice
+After the complete release candidate exists and focused proofs are green:
+- Perform one integrated release review against the approved spec and plan.
+- Fix findings in the same logical ownership lane and rerun only affected proofs.
+- Invoke `superpowers:finishing-a-development-branch` for final verification and integration choices.
 
-## When to Stop and Ask for Help
+## When to Pause for Input
 
-**STOP executing immediately when:**
-- Hit a blocker (missing dependency, test fails, instruction unclear)
-- Plan has critical gaps preventing starting
-- You don't understand an instruction
-- Verification fails repeatedly
-
-**Ask for clarification rather than guessing.**
+Pause only for a genuine missing user decision, new authority, or ambiguity that
+materially changes the approved outcome. A test failure, dependency defect, or ordinary
+implementation bug is not a reason to stop: diagnose, fix, and resume from the failed
+focused stage.
 
 ## When to Revisit Earlier Steps
 
@@ -56,19 +51,17 @@ After all tasks complete and verified:
 - Partner updates the plan based on your feedback
 - Fundamental approach needs rethinking
 
-**Don't force through blockers** - stop and ask.
+**Fix and resume** ordinary execution defects; ask only when the approved outcome cannot determine the next action.
 
 ## Remember
-- Review plan critically first
-- Follow plan steps exactly
-- Don't skip verifications
-- Reference skills when plan says to
-- Stop when blocked, don't guess
-- Never start implementation on main/master branch without explicit user consent
+- Review the approved plan once before implementation.
+- Own the complete release candidate, not a mechanical tail.
+- Keep fix loops at T0/T1; do not repeat a stable T2 or full suite.
+- Run one integrated release review after assembly.
+- Never start implementation on main/master without explicit user consent.
 
 ## Integration
 
-**Required workflow skills:**
-- **superpowers:using-git-worktrees** - Ensures isolated workspace (creates one or verifies existing)
-- **superpowers:writing-plans** - Creates the plan this skill executes
-- **superpowers:finishing-a-development-branch** - Complete development after all tasks
+- `superpowers:writing-plans` creates the plan this skill executes.
+- `superpowers:using-git-worktrees` provides isolation when the current checkout can collide with unrelated work.
+- `superpowers:finishing-a-development-branch` completes final verification and integration.

@@ -6,7 +6,7 @@ description: Use AFTER build, BEFORE collapsing a multi-entry-point project as "
 # verify-arch — integration fitness function (SWE.5)
 
 ## When to use
-Multi-entry-point projects only (the spec's `## Surfaces` has ≥2 rows). Run AFTER `subagent-driven-development` finishes the build, BEFORE collapsing the project as done. For single-entry projects, record `verify-arch: N/A` and skip — there's no cross-surface integration to verify; go straight to `verify-spec`.
+Multi-entry-point projects only (the spec's `## Surfaces` has ≥2 rows). Run AFTER the current native owner finishes the complete build candidate, BEFORE collapsing the project as done. For single-entry projects, record `verify-arch: N/A` and skip — there's no cross-surface integration to verify; go straight to `verify-spec`.
 
 ## What you check vs what verify-spec checks
 Both skills read from the SAME source — the spec's Capability Registry — but DIFFERENT columns:

@@ -42,11 +42,8 @@ foreach ($artifact in @(
   "decision-log\.md",
   "clarification-log\.json",
   "issue-coverage\.json",
-  "dispatch-policy\.yaml",
   "spec-draft0\.md",
-  "mock-v0/index\.html",
-  "elicitation-critic\.json",
-  "critic-dispatch-r1\.json"
+  "mock-v0/index\.html"
 )) {
   Assert-Contains $brainstorming $artifact "S0 artifact list must include $artifact"
 }
@@ -55,11 +52,9 @@ foreach ($bound in @(
   "material-unknowns\.json",
   "decision-log\.md",
   "clarification-log\.json",
-  "dispatch-policy\.yaml",
+  "issue-coverage\.json",
   "spec-draft0\.md",
-  "mock-v0/index\.html",
-  "elicitation-critic\.json",
-  "critic-dispatch-r1\.json"
+  "mock-v0/index\.html"
 )) {
   Assert-Contains $brainstorming $bound "token-bound list must include $bound"
 }
@@ -83,8 +78,8 @@ function Assert-S0ContractComplete {
   $section = $match.Groups[1].Value
   foreach ($required in @(
     "spg start <topic> --dir <project>",
-    "S0_ARTIFACTS = [stakeholder-needs.json, material-unknowns.json, decision-log.md, clarification-log.json, issue-coverage.json, dispatch-policy.yaml, spec-draft0.md, mock-v0/index.html, elicitation-critic.json, critic-dispatch-r1.json]",
-    "TOKEN_BOUND = [stakeholder-needs.json, material-unknowns.json, decision-log.md, clarification-log.json, dispatch-policy.yaml, spec-draft0.md, mock-v0/index.html, elicitation-critic.json, critic-dispatch-r1.json]",
+    "S0_ARTIFACTS = [stakeholder-needs.json, material-unknowns.json, decision-log.md, clarification-log.json, issue-coverage.json, spec-draft0.md, mock-v0/index.html]",
+    "TOKEN_BOUND = [stakeholder-needs.json, material-unknowns.json, decision-log.md, clarification-log.json, issue-coverage.json, spec-draft0.md, mock-v0/index.html]",
     "git check-ignore -q <run_dir>",
     "handoffs/YYYY-MM-DD--<session-name>--handoff.md",
     "session | created | now | next | remaining work | takeover instructions",
@@ -97,8 +92,8 @@ function Assert-S0ContractComplete {
 Assert-S0ContractComplete $brainstorming
 foreach ($required in @(
   "spg start <topic> --dir <project>",
-  "S0_ARTIFACTS = [stakeholder-needs.json, material-unknowns.json, decision-log.md, clarification-log.json, issue-coverage.json, dispatch-policy.yaml, spec-draft0.md, mock-v0/index.html, elicitation-critic.json, critic-dispatch-r1.json]",
-  "TOKEN_BOUND = [stakeholder-needs.json, material-unknowns.json, decision-log.md, clarification-log.json, dispatch-policy.yaml, spec-draft0.md, mock-v0/index.html, elicitation-critic.json, critic-dispatch-r1.json]",
+  "S0_ARTIFACTS = [stakeholder-needs.json, material-unknowns.json, decision-log.md, clarification-log.json, issue-coverage.json, spec-draft0.md, mock-v0/index.html]",
+  "TOKEN_BOUND = [stakeholder-needs.json, material-unknowns.json, decision-log.md, clarification-log.json, issue-coverage.json, spec-draft0.md, mock-v0/index.html]",
   "git check-ignore -q <run_dir>",
   "handoffs/YYYY-MM-DD--<session-name>--handoff.md",
   "session | created | now | next | remaining work | takeover instructions",
@@ -112,9 +107,9 @@ foreach ($required in @(
 $usingSuperpowers = Get-Content -Raw -LiteralPath (Join-Path $Root "skills\using-superpowers\SKILL.md")
 Assert-Contains $usingSuperpowers "complete stage-order" "using-superpowers must require a complete stage-order recap"
 Assert-Contains $usingSuperpowers "S0_DISCUSS" "using-superpowers must name S0_DISCUSS"
-Assert-Contains $usingSuperpowers "S2_VERIFICATION_PLAN" "using-superpowers must name S2_VERIFICATION_PLAN"
-Assert-Contains $usingSuperpowers "S4_BUILD executor" "using-superpowers must define S4_BUILD executor"
-Assert-Contains $usingSuperpowers "current session" "using-superpowers must use current session as the default owner/executor wording"
+Assert-Contains $usingSuperpowers "S2_TEST_DESIGN_REVIEW" "using-superpowers must name S2_VERIFICATION_PLAN"
+Assert-Contains $usingSuperpowers "S4_BUILD" "using-superpowers must define S4_BUILD"
+Assert-Contains $usingSuperpowers "current host session" "using-superpowers must use current host session as the native owner wording"
 Assert-Contains $usingSuperpowers "fixed boilerplate" "using-superpowers must reject boilerplate-only entry responses"
 Assert-Contains $usingSuperpowers "superpowers:writing-verification-plans" "using-superpowers must map S2 to writing-verification-plans"
 Assert-Contains $usingSuperpowers "superpowers:verify-spec" "using-superpowers must map S5_VERIFY_SPEC to verify-spec"
@@ -129,30 +124,6 @@ Assert-Contains $verifyArch "single-entry" "verify-arch must be conditional on m
 $verifySpec = Get-Content -Raw -LiteralPath (Join-Path $Root "skills\verify-spec\SKILL.md")
 Assert-Contains $verifySpec "skill-ui-human" "verify-spec must depend on skill-ui-human for UI caps"
 Assert-Contains $verifySpec "ui_human_evidence" "verify-spec must require runtime UI-human evidence in UI MATCHES verdicts"
-
-$jobSchema = Join-Path $Root "docs\orch\builder-job.schema.json"
-$ackSchema = Join-Path $Root "docs\orch\builder-ack.schema.json"
-if (-not (Test-Path -LiteralPath $jobSchema)) {
-  throw "missing docs/orch/builder-job.schema.json"
-}
-if (-not (Test-Path -LiteralPath $ackSchema)) {
-  throw "missing docs/orch/builder-ack.schema.json"
-}
-
-$job = Get-Content -Raw -LiteralPath $jobSchema
-Assert-Contains $job "builder_session" "builder job schema must require runtime-provided builder_session"
-Assert-Contains $job "claude_web" "builder job schema must require Claude web session handoff for external S4 builder"
-Assert-Contains $job "user_specified" "builder job schema must record that the builder session was user-specified"
-Assert-Contains $job "handoff_channel" "builder job schema must require explicit handoff channel"
-Assert-Contains $job "chrome" "builder job schema must require Chrome handoff for Claude web sessions"
-Assert-Contains $job "fallback_allowed" "builder job schema must explicitly forbid fallback substitution"
-if ($job -match "home-superpower") {
-  throw "builder job schema must not hardcode home-superpower"
-}
-
-$ack = Get-Content -Raw -LiteralPath $ackSchema
-Assert-Contains $ack "touched_files" "builder ack schema must report touched_files"
-Assert-Contains $ack "forbidden_paths" "builder ack schema must define forbidden paths for spec/verify/release ownership"
 
 $pinScript = Get-Content -Raw -LiteralPath (Join-Path $Root "scripts\pin-local-fork-install.ps1")
 Assert-Contains $pinScript "Repin-ClaudeSkillRegistry" "pin-local-fork-install must repin Claude skills registry entries"

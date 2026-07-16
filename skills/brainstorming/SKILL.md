@@ -27,11 +27,11 @@ When this skill runs as SPG `S0_DISCUSS`, use these exact commands and artifacts
 
 ```text
 spg start <topic> --dir <project>
-S0_ARTIFACTS = [stakeholder-needs.json, material-unknowns.json, decision-log.md, clarification-log.json, issue-coverage.json, dispatch-policy.yaml, spec-draft0.md, mock-v0/index.html, elicitation-critic.json, critic-dispatch-r1.json]
-TOKEN_BOUND = [stakeholder-needs.json, material-unknowns.json, decision-log.md, clarification-log.json, dispatch-policy.yaml, spec-draft0.md, mock-v0/index.html, elicitation-critic.json, critic-dispatch-r1.json]
+S0_ARTIFACTS = [stakeholder-needs.json, material-unknowns.json, decision-log.md, clarification-log.json, issue-coverage.json, spec-draft0.md, mock-v0/index.html]
+TOKEN_BOUND = [stakeholder-needs.json, material-unknowns.json, decision-log.md, clarification-log.json, issue-coverage.json, spec-draft0.md, mock-v0/index.html]
 ```
 
-Exhaustively elicit stakeholder needs, resolve every material unknown, and write the S0 artifact list above with the required schemas: `stakeholder-needs.json` rows are `{need_id, stakeholder, need, acceptance_signal}`; `material-unknowns.json` rows are `{id, question, status}` with every status `resolved`; `issue-coverage.json` records every issue and its trace; `decision-log.md` is append-only; `clarification-log.json` is append-only. `dispatch-policy.yaml`, `spec-draft0.md`, `mock-v0/index.html`, `elicitation-critic.json`, and `critic-dispatch-r1.json` are required S0 outputs, not optional prose. Finish with the exact command `spg s0-check <run_dir>`.
+Exhaustively elicit stakeholder needs, resolve every material unknown, and write the seven S0 artifacts above. `stakeholder-needs.json` rows are `{need_id, stakeholder, need, acceptance_signal}`; `material-unknowns.json` rows are `{id, question, status}` with every status `resolved`; `issue-coverage.json` records every reported issue and its forward trace; `decision-log.md` and `clarification-log.json` are append-only. `spec-draft0.md` and `mock-v0/index.html` are required review outputs. Completeness is decided by these typed fields and validators, never by a required reviewer persona. Finish with the exact command `spg s0-check <run_dir>`.
 
 Before approval, run `git check-ignore -q <run_dir>` in the target project before writing handoff; refuse and diagnose if it exits nonzero. For every produced S0 artifact, run `Get-FileHash -Algorithm SHA256`, then record one sorted `path -> sha256` table in the single handoff. The fixed handoff fields, in order, are `session | created | now | next | remaining work | takeover instructions`. Create exactly one cumulative handoff per run/session at `handoffs/YYYY-MM-DD--<session-name>--handoff.md`; sanitize `<session-name>` to a lowercase hyphen slug, fix `created` at first creation, and find/update that same file on every completed station. `next` contains the next three stations exactly, in order, or all remaining stations if fewer.
 
@@ -162,10 +162,10 @@ After the spec review loop passes, render the written spec into a clickable HTML
 The review response MUST include:
 
 - Spec source path: `<path>.md`
-- Rendered review page: clickable HTML path/URL
-- Expected mock page/artifact: clickable path/URL
+- Rendered review page: verified disposable Cloudflare Quick Tunnel URL; a local HTML path alone is invalid
+- Expected mock page/artifact: verified disposable Cloudflare Quick Tunnel URL when it is local HTML; local non-HTML source artifacts remain source evidence
 
-> "Spec written and committed to `<path>`. Rendered review page: `<url-or-html-path>`. Expected mock: `<url-or-html-path>`. Please review it and let me know if you want to make any changes before we start writing out the verification plan."
+> "Spec written and committed to `<path>`. Public rendered review: `<https://random.trycloudflare.com/...>`. Public expected mock: `<https://random.trycloudflare.com/...>`. Local source paths: `<paths>`. Please review it and let me know if you want to make any changes before we start writing out the verification plan."
 
 Wait for the user's response. If they request changes, make them and re-run the spec review loop. Only proceed once the user approves.
 
@@ -267,7 +267,7 @@ For non-UI specs, produce the closest equivalent expected mock artifact:
 
 ## Rendered review artifacts (human review)
 
-Any Markdown file intended for the user to review MUST have a rendered HTML review page. The rendered page must be clickable from the response, must link to the expected mock/review artifacts, and must include a `source-sha256` meta tag for the Markdown source. This applies to Spec Draft, Spec Final, decision logs used as review evidence, and any companion checklist shown for approval.
+Any Markdown file intended for the user to review MUST have a rendered HTML review page. Before the review response, serve the smallest review bundle through `bash ~/.claude/lib/serve-tunnel.sh <dir>`, verify the resulting disposable Cloudflare Quick Tunnel fetch, and lead with that public URL. A local HTML path alone is invalid. The rendered page must link to the expected mock/review artifacts and must include a `source-sha256` meta tag for the Markdown source. This applies to Spec Draft, Spec Final, decision logs used as review evidence, and any companion checklist shown for approval.
 
 Raw `.md` paths are source evidence, not human-review evidence. If a gate needs user approval, provide both the source path and the rendered page, and treat raw-MD-only review as incomplete.
 

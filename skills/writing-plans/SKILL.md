@@ -7,7 +7,7 @@ description: Use when you have a spec or requirements for a multi-step task, bef
 
 ## Overview
 
-Write comprehensive implementation plans assuming the engineer has zero context for our codebase and questionable taste. Document everything they need to know: which files to touch for each task, code, testing, docs they might need to check, how to test it. Give them the whole plan as bite-sized tasks. DRY. YAGNI. TDD. Frequent commits.
+Write comprehensive implementation plans assuming the engineer has zero context for our codebase and questionable taste. Document everything they need to know: which files to touch for each task, code, testing, docs they might need to check, how to test it. Give the current owner the whole plan as cohesive outcome tasks that converge into one complete release candidate. DRY. YAGNI. TDD. One candidate commit per coherent repository diff.
 
 Assume they are a skilled developer, but know almost nothing about our toolset or problem domain. Assume they don't know good test design very well.
 
@@ -37,21 +37,18 @@ This structure informs the task decomposition. Each task should produce self-con
 
 ## Task Right-Sizing
 
-A task is the smallest unit that carries its own test cycle and is worth a
-fresh reviewer's gate. When drawing task boundaries: fold setup,
-configuration, scaffolding, and documentation steps into the task whose
-deliverable needs them; split only where a reviewer could meaningfully
-reject one task while approving its neighbor. Each task ends with an
-independently testable deliverable.
+A task is a cohesive outcome slice with its own focused test cycle. Fold setup,
+configuration, scaffolding, migrations, and documentation into the outcome that needs
+them. Do not create task boundaries merely to assign another worker or reviewer. The
+complete release candidate receives one integrated release review after all planned
+outcomes are assembled.
 
-## Bite-Sized Task Granularity
+## Cohesive Task Granularity
 
-**Each step is one action (2-5 minutes):**
-- "Write the failing test" - step
-- "Run it to make sure it fails" - step
-- "Implement the minimal code to make the test pass" - step
-- "Run the tests and make sure they pass" - step
-- "Commit" - step
+Plan steps must be concrete and executable, but they do not need to fit an artificial
+2–5 minute budget. Each task names the failing proof, the smallest implementation loop,
+the focused verification, and the candidate boundary. Avoid per-file or per-test tickets
+when one owner can self-converge the whole outcome more cheaply.
 
 ## Plan Document Header
 
@@ -60,7 +57,7 @@ independently testable deliverable.
 ```markdown
 # [Feature Name] Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Execution:** The current native owner implements the complete release candidate and owns its focused implement → test → fix loop. Host-native delegation is optional and only useful for a disjoint complete lane with its own acceptance oracle. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** [One sentence describing what this builds]
 
@@ -145,7 +142,7 @@ Every step must contain the actual content an engineer needs. These are **plan f
 
 ## Self-Review
 
-After writing the complete plan, look at the spec with fresh eyes and check the plan against it. This is a checklist you run yourself — not a subagent dispatch.
+After writing the complete plan, look at the spec with fresh eyes and check the plan against it. Run this as one inline plan-coverage pass before handing the plan to implementation.
 
 **1. Spec coverage:** Skim each section/requirement in the spec. Can you point to a task that implements it? List any gaps.
 
@@ -159,16 +156,19 @@ If you find issues, fix them inline. No need to re-review — just fix and move 
 
 ## Execution Handoff
 
-After saving the plan, the executor is **deterministically selected** — do NOT ask the user to pick.
+The current native owner executes the complete release candidate. The host decides
+whether to work solo or use native delegation; the plan never selects a model, thread,
+worker identity, or executor tool.
 
-The PostToolUse `executor_select` hook writes a `## Recommended executor: <X>` block into the plan on save (subagent-driven vs workflow), chosen by a committed, auditable routing function over the plan's structure. **Proceed with THAT executor.** (Override: the user may name a different executor in their prompt.)
+When delegation has leverage, hand off one disjoint complete outcome with constraints,
+allowed paths, acceptance oracle, and definition of done. Require one bounded StartAck,
+then take a compact ResultReceipt and bounded diff. Corrections return to the same
+logical owner when native continuity exists. The lead does not repeat the delegated
+investigation or implementation.
 
-**If the block says `subagent-driven` (the safe adaptive default):**
-- **REQUIRED SUB-SKILL:** Use superpowers:subagent-driven-development
-- Fresh subagent per task + two-stage review
-
-**If the block says `workflow` (many independent, parallelizable tasks):**
-- Hand off to the `/workflow` tool — deterministic background orchestration with native parallel fan-out and journal+resume.
+The owner runs T0/T1 during the focused implement → test → fix loop. Assemble the whole
+candidate before one integrated release review; T2 and the single unchanged-candidate
+T3 remain later release gates.
 
 ## SPG Lifecycle Authority
 
@@ -176,18 +176,6 @@ When this plan runs under SPG, only `S0_APPROVE` and `S1_APPROVE` are human appr
 gates. `S2`–`S6`, including `S3_IMPLEMENTATION_PLAN`, are mechanical evidence gates:
 do not request or consume `plan_approval`, `executor_confirm`, or any other human token
 for S3 planning.
-
-## External S4 Builder Handoff SOP
-
-External delegation is allowed only for `S4_BUILD`. The orchestrator remains owner of S0-S3, independent S5 verification, fix pushback, release, and push.
-
-If the user specifies a Claude web session for S4_BUILD:
-
-1. Record it in the builder job as `builder_session.type=claude_web`, `builder_session.session_name=<user-specified name>`, `builder_session.user_specified=true`, and `builder_session.handoff_channel=chrome`.
-2. Use Chrome control to claim the existing Claude Code web tab, select the exact named session, and paste/send only a short pointer to the local `jobs/*.json`.
-3. Do not use Claude CLI, a new Claude web session, or a different existing session as a substitute.
-4. If the named session is absent, busy with another task, or cannot be controlled, mark S4 handoff BLOCKED and report the blocker instead of falling back.
-5. Poll local `outbox/*.report.json`, git status, and allowed-path diff. Do not judge S4 complete from chat prose alone.
 
 ## Plan Coverage Gate
 
@@ -197,6 +185,6 @@ Before S4_BUILD begins, a `plan-coverage.json` artifact must exist reporting zer
 
 When this skill is used as part of Superpower, emit the compact progress line only on S3 entry and S3 exit (when handing off to S4_BUILD), not on every internal action.
 
-`Superpower: now=S3_IMPLEMENTATION_PLAN(superpowers:writing-plans); next=S4_BUILD(superpowers:executing-plans) > ...`
+`Superpower: now=S3_IMPLEMENTATION_PLAN(superpowers:writing-plans); next=S4_BUILD(current host session, host-native) > ...`
 
 Already-passed gates are omitted. Do not print this line for routine tool calls or internal progress inside S3.
