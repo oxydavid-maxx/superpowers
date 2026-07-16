@@ -1,12 +1,14 @@
 param(
   [string]$ClaudeHome = "$env:USERPROFILE\.claude",
   [string]$CodexHome = "$env:USERPROFILE\.codex",
+  [string]$SourceRepo = "",
   [string]$ExpectedVersion = ""
 )
 
 $ErrorActionPreference = "Stop"
 
-$root = Resolve-Path (Join-Path $PSScriptRoot "..")
+if (-not $SourceRepo) { $SourceRepo = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path }
+$root = (Resolve-Path -LiteralPath $SourceRepo).Path
 $forkUrl = "https://github.com/oxydavid-maxx/superpowers"
 $sourceClaudeManifest = Join-Path $root ".claude-plugin\plugin.json"
 $sourceCodexManifest = Join-Path $root ".codex-plugin\plugin.json"
