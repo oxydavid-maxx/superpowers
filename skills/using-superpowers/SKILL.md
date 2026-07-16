@@ -54,8 +54,8 @@ The response MUST include:
 | S0_DISCUSS | `superpowers:brainstorming` — stakeholder needs, material unknowns, issue coverage, decision/clarification logs |
 | S0_DRAFT0 | `superpowers:brainstorming` — typed first specification draft |
 | S0_MOCK0 | `superpowers:brainstorming` — expected mock / non-UI equivalent |
-| S0_APPROVE | SPG digest-bound human approval |
 | S0_SOTA | `superpowers:brainstorming` + source research |
+| S0_APPROVE | SPG digest-bound human approval |
 | S1_DISCUSS | `superpowers:brainstorming` — fold prior art back into discussion |
 | S1_DRAFT1 | `superpowers:brainstorming` — final capability registry and traceability |
 | S1_MOCK1 | `superpowers:brainstorming` — final expected mock / non-UI equivalent |
@@ -120,7 +120,7 @@ py -3 -m spg.cli contract lint
 py -3 -m spg.cli owner-matrix --md
 ```
 
-Authoritative runtime pathAuthoritative runtime path for `spg run` is `spg/cli.py` -> `spg/graph_exec.py` -> `spg/graph.py` plus `spg/nodes/bodies.py` and `spg/transition_contracts.json`.
+Authoritative runtime path for `spg run` is `spg/cli.py` -> `spg/graph_exec.py` -> `spg/graph.py` plus `spg/nodes/bodies.py` and `spg/transition_contracts.json`.
 
 Do NOT judge current SPG completeness from `spg/runner.py::_ADVANCE`. That table is a legacy/Phase-1 helper and is not the current CLI runtime path.
 

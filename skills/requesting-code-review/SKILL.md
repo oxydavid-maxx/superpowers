@@ -1,103 +1,70 @@
 ---
 name: requesting-code-review
-description: Use when completing tasks, implementing major features, or before merging to verify work meets requirements
+description: Use when an exact integrated candidate is ready for RC review/proof, before merge or release, or when an additional review is explicitly requested
 ---
 
 # Requesting Code Review
 
-Dispatch a code reviewer subagent to catch issues before they cascade. The reviewer gets precisely crafted context for evaluation — never your session's history. This keeps the reviewer focused on the work product, not your thought process, and preserves your own context for continued work.
+## Overview
 
-**Core principle:** Review early, review often.
+The current native owner reviews one exact integrated candidate against the approved requirements and its proof receipts. Do not insert a separate review layer between FOCUS loops.
 
-## When to Request Review
+**Core principle:** Bind every finding and verdict to the exact candidate under review.
 
-**Mandatory:**
-- After each task in subagent-driven development
-- After completing major feature
-- Before merge to main
+## When to Review
 
-**Optional but valuable:**
-- When stuck (fresh perspective)
-- Before refactoring (baseline check)
-- After fixing complex bug
+- After all planned outcomes are assembled and the candidate is ready for RC.
+- Before merge or release when repository policy requires that review.
+- When the user explicitly requests an additional review.
 
-## How to Request
+Do not make review mandatory after each task. During implementation, the owner stays in FOCUS and reruns only the affected proof until GREEN.
 
-**1. Get git SHAs:**
-```bash
-BASE_SHA=$(git rev-parse HEAD~1)  # or origin/main
-HEAD_SHA=$(git rev-parse HEAD)
-```
+## Review Procedure
 
-**2. Dispatch code reviewer subagent:**
+### 1. Bind the candidate
 
-Dispatch a `general-purpose` subagent, filling the template at [code-reviewer.md](code-reviewer.md)
+Record the exact base and head commit IDs, or an equivalent immutable diff identity. Never infer the base from `HEAD~1` when the candidate may contain multiple commits.
 
-**Placeholders:**
-- `{DESCRIPTION}` - Brief summary of what you built
-- `{PLAN_OR_REQUIREMENTS}` - What it should do
-- `{BASE_SHA}` - Starting commit
-- `{HEAD_SHA}` - Ending commit
+### 2. Load the authority
 
-**3. Act on feedback:**
-- Fix Critical issues immediately
-- Fix Important issues before proceeding
-- Note Minor issues for later
-- Push back if reviewer is wrong (with reasoning)
+Review only against:
+- the approved specification and implementation plan;
+- the exact candidate diff;
+- the affected proof receipts and required integrated evidence;
+- any named high-risk or release-policy trigger.
 
-## Example
+### 3. Inspect the candidate
 
-```
-[Just completed Task 2: Add verification function]
+Check requirement coverage, correctness, error handling, regression risk, security or data-safety impact, maintainability, and whether the proof receipts support the claimed outcome.
 
-You: Let me request code review before proceeding.
+### 4. Record evidence-backed findings
 
-BASE_SHA=$(git log --oneline | grep "Task 1" | head -1 | awk '{print $1}')
-HEAD_SHA=$(git rev-parse HEAD)
+Classify findings as Critical, Important, or Minor. Every finding names the file and line when available, explains the concrete failure mode, and cites the requirement or evidence it violates.
 
-[Dispatch code reviewer subagent]
-  DESCRIPTION: Added verifyIndex() and repairIndex() with 4 issue types
-  PLAN_OR_REQUIREMENTS: Task 2 from docs/superpowers/plans/deployment-plan.md
-  BASE_SHA: a7981ec
-  HEAD_SHA: 3df7661
+### 5. Resolve the verdict
 
-[Subagent returns]:
-  Strengths: Clean architecture, real tests
-  Issues:
-    Important: Missing progress indicators
-    Minor: Magic number (100) for reporting interval
-  Assessment: Ready to proceed
+- Critical or Important findings reject the candidate. Return to the affected FOCUS loop, reach GREEN, and form a new exact candidate for RC.
+- Minor findings may be fixed now or recorded explicitly when they do not affect acceptance.
+- If a finding is technically wrong, reject it with code, test, or requirement evidence.
 
-You: [Fix progress indicators]
-[Continue to Task 3]
-```
+## Full-Suite Boundary
+
+A full suite runs only when the approved plan names a concrete high-risk trigger or repository release policy explicitly requires it. Otherwise review uses the exact integrated proofs required for this candidate.
+
+## Optional Independent Review
+
+If the user or repository policy explicitly requires an independent reviewer, use [code-reviewer.md](code-reviewer.md) as the evidence template. This is optional collaboration, not the default execution owner.
 
 ## Integration with Workflows
 
-**Subagent-Driven Development:**
-- Review after EACH task
-- Catch issues before they compound
-- Fix before moving to next task
-
-**Executing Plans:**
-- Review after each task or at natural checkpoints
-- Get feedback, apply, continue
-
-**Ad-Hoc Development:**
-- Review before merge
-- Review when stuck
+- **Executing Plans:** RC performs one review/proof after the complete candidate is assembled.
+- **Legacy explicit-request workflow:** `subagent-driven-development` may use the template inside its opt-in mechanics.
+- **Ad-hoc development:** bind the exact candidate before review rather than reviewing a moving worktree.
 
 ## Red Flags
 
-**Never:**
-- Skip review because "it's simple"
-- Ignore Critical issues
-- Proceed with unfixed Important issues
-- Argue with valid technical feedback
-
-**If reviewer wrong:**
-- Push back with technical reasoning
-- Show code/tests that prove it works
-- Request clarification
-
-See template at: [code-reviewer.md](code-reviewer.md)
+- Reviewing a moving or unidentified candidate.
+- Adding task-by-task review by default.
+- Running a full suite without a named trigger.
+- Reporting findings without file, requirement, or proof evidence.
+- Ignoring valid Critical or Important findings.
