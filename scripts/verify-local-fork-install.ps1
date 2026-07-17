@@ -1,172 +1,132 @@
+<#
+.SYNOPSIS
+  Verify exact, contained, non-link-following Claude and Codex Superpowers installs.
+
+.NOTES
+  Verification covers Git commit identity, approved package digest, every tracked file byte,
+  complete non-Git file enumeration, manifests, active metadata, and required skill semantics.
+  It intentionally does not attest ACLs, alternate data streams, hardlink topology beyond
+  rejecting multi-hardlink managed files, or timestamps.
+#>
 param(
   [string]$ClaudeHome = "$env:USERPROFILE\.claude",
   [string]$CodexHome = "$env:USERPROFILE\.codex",
-  [string]$SourceRepo = "",
-  [string]$ExpectedVersion = ""
+  [string]$ExpectedVersion = "",
+  [string]$ExpectedSourceCommit = "",
+  [string]$ExpectedPackageDigest = ""
 )
 
 $ErrorActionPreference = "Stop"
-
-if (-not $SourceRepo) { $SourceRepo = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path }
-$root = (Resolve-Path -LiteralPath $SourceRepo).Path
-$forkUrl = "https://github.com/oxydavid-maxx/superpowers"
-$sourceClaudeManifest = Join-Path $root ".claude-plugin\plugin.json"
-$sourceCodexManifest = Join-Path $root ".codex-plugin\plugin.json"
-
-if (-not $ExpectedVersion) {
-  $ExpectedVersion = (Get-Content -Raw -LiteralPath $sourceClaudeManifest | ConvertFrom-Json).version
-}
-
+. (Join-Path $PSScriptRoot "local-fork-security.ps1")
 $errors = New-Object System.Collections.Generic.List[string]
 
-function Add-Error([string]$message) {
+function Add-VerificationError([string]$message) {
   $script:errors.Add($message) | Out-Null
 }
 
-function Read-Json([string]$path) {
-  if (-not (Test-Path -LiteralPath $path)) {
-    Add-Error "missing file: $path"
-    return $null
-  }
-  return Get-Content -Raw -LiteralPath $path | ConvertFrom-Json
-}
-
-function Check-ManifestField([string]$path, [string]$fieldPath, [string]$expected) {
-  $json = Read-Json $path
-  if ($null -eq $json) { return }
-  $cur = $json
-  foreach ($segment in $fieldPath.Split(".")) {
-    if ($null -eq $cur.PSObject.Properties[$segment]) {
-      Add-Error "$path missing field $fieldPath"
-      return
-    }
-    $cur = $cur.$segment
-  }
-  if ($cur -ne $expected) {
-    Add-Error "$path $fieldPath expected '$expected', got '$cur'"
+function Assert-ActiveMetadataTarget([string]$current) {
+  $metadataPath = Join-Path $current ".superpowers-active.json"
+  $metadata = Get-Content -Raw -LiteralPath $metadataPath -Encoding utf8 | ConvertFrom-Json
+  if (-not (Get-SPCanonicalPath ([string]$metadata.target)).Equals((Get-SPCanonicalPath $current), [StringComparison]::OrdinalIgnoreCase)) {
+    throw "active metadata target escapes or disagrees with current checkout: $current"
   }
 }
 
-function Git-Head([string]$path) {
-  if (-not (Test-Path -LiteralPath (Join-Path $path ".git"))) {
-    return ""
+try {
+  Assert-SPValidVersion $ExpectedVersion
+  if ($ExpectedSourceCommit -notmatch "^[0-9a-fA-F]{40,64}$") {
+    throw "ExpectedSourceCommit is required and must be a full source commit approval token"
   }
-  $head = & git -C $path rev-parse HEAD 2>$null
-  if ($LASTEXITCODE -ne 0) { return "" }
-  return ($head | Select-Object -First 1)
-}
-
-function Resolve-PluginTarget([string]$path) {
-  if (-not (Test-Path -LiteralPath $path)) {
-    return ""
+  $ExpectedSourceCommit = $ExpectedSourceCommit.ToLowerInvariant()
+  if ($ExpectedPackageDigest -ne (Get-SPApprovedPackageDigest)) {
+    throw "ExpectedPackageDigest must equal approved package digest $(Get-SPApprovedPackageDigest)"
   }
-  $item = Get-Item -LiteralPath $path -Force
-  if ($item.LinkType -and $item.Target) {
-    return (Resolve-Path -LiteralPath $item.Target).Path
+  $homes = Assert-SPDistinctHomes $ClaudeHome $CodexHome
+  $ClaudeHome = $homes.Claude
+  $CodexHome = $homes.Codex
+
+  $claudeBase = Join-Path $ClaudeHome "plugins\cache\superpowers-dev\superpowers"
+  $codexBase = Join-Path $CodexHome "plugins\cache\superpowers-dev\superpowers"
+  $claudeCurrent = Join-Path $claudeBase "current"
+  $codexCurrent = Join-Path $codexBase "current"
+  $claudeVersioned = Join-Path $claudeBase $ExpectedVersion
+  $codexVersioned = Join-Path $codexBase $ExpectedVersion
+
+  foreach ($base in @($claudeBase, $codexBase)) {
+    Assert-SPNoReparseAncestors $base "installed cache"
+    if (-not (Test-Path -LiteralPath $base -PathType Container)) { throw "installed cache missing: $base" }
+    Assert-SPPlainTree $base "installed cache"
   }
-  return (Resolve-Path -LiteralPath $path).Path
-}
-
-function Check-ActiveMetadata([string]$path, [string]$expectedVersion, [string]$expectedSha) {
-  $metaPath = Join-Path $path ".superpowers-active.json"
-  $meta = Read-Json $metaPath
-  if ($null -eq $meta) { return }
-  if ($meta.version -ne $expectedVersion) {
-    Add-Error "$metaPath version expected '$expectedVersion', got '$($meta.version)'"
-  }
-  if ($expectedSha -and $meta.gitCommitSha -ne $expectedSha) {
-    Add-Error "$metaPath gitCommitSha expected '$expectedSha', got '$($meta.gitCommitSha)'"
-  }
-}
-
-
-Check-ManifestField $sourceClaudeManifest "repository" $forkUrl
-Check-ManifestField $sourceCodexManifest "repository" $forkUrl
-Check-ManifestField $sourceCodexManifest "interface.websiteURL" $forkUrl
-
-$sourceHead = Git-Head $root
-
-$installedPath = Join-Path $ClaudeHome "plugins\installed_plugins.json"
-$installed = Read-Json $installedPath
-if ($null -ne $installed) {
-  $names = @($installed.plugins.PSObject.Properties.Name)
-  if ($names -contains "superpowers@claude-plugins-official") {
-    Add-Error "Claude still has superpowers@claude-plugins-official installed"
-  }
-  if (-not ($names -contains "superpowers@superpowers-dev")) {
-    Add-Error "Claude is missing superpowers@superpowers-dev"
-  } else {
-    $entry = @($installed.plugins."superpowers@superpowers-dev")[0]
-    if ($entry.version -ne $ExpectedVersion) {
-      Add-Error "Claude superpowers-dev version expected $ExpectedVersion, got $($entry.version)"
-    }
-    if ($entry.installPath -notmatch "\\superpowers-dev\\superpowers\\current$") {
-      Add-Error "Claude superpowers-dev installPath does not point at stable current pointer: $($entry.installPath)"
-    }
-    if (-not (Test-Path -LiteralPath $entry.installPath)) {
-      Add-Error "Claude superpowers-dev installPath missing: $($entry.installPath)"
-    } else {
-      $resolvedClaude = Resolve-PluginTarget $entry.installPath
-      if ($resolvedClaude -notmatch "\\superpowers-dev\\superpowers\\$([regex]::Escape($ExpectedVersion))$") {
-        Add-Error "Claude current pointer resolves to wrong target: $resolvedClaude"
-      }
-      Check-ManifestField (Join-Path $resolvedClaude ".claude-plugin\plugin.json") "repository" $forkUrl
-      Check-ActiveMetadata $resolvedClaude $ExpectedVersion $sourceHead
-      $claudeHead = Git-Head $resolvedClaude
-      if ($sourceHead -and $claudeHead -and $sourceHead -ne $claudeHead) {
-        Add-Error "Claude cache HEAD $claudeHead does not match source HEAD $sourceHead"
-      }
+  foreach ($checkout in @($claudeCurrent, $codexCurrent, $claudeVersioned, $codexVersioned)) {
+    $checkoutRoot = if ($checkout.StartsWith($claudeBase, [StringComparison]::OrdinalIgnoreCase)) { $claudeBase } else { $codexBase }
+    Assert-SPContained $checkoutRoot $checkout "checkout containment"
+    $item = Get-SPItem $checkout
+    if ($null -eq $item -or -not $item.PSIsContainer -or (Test-SPReparseItem $item)) {
+      throw "checkout must be a regular contained directory: $checkout"
     }
   }
-}
 
-$officialInUse = Get-ChildItem -LiteralPath (Join-Path $ClaudeHome "plugins\cache\claude-plugins-official\superpowers") -Recurse -Force -Filter ".in_use" -ErrorAction SilentlyContinue
-if ($officialInUse) {
-  Add-Error "official Claude Superpowers cache still has .in_use marker(s): $($officialInUse.FullName -join '; ')"
-}
+  $claudeInfo = Get-SPCheckoutInfo $claudeCurrent $ExpectedSourceCommit $ExpectedPackageDigest $ExpectedVersion $true
+  $codexInfo = Get-SPCheckoutInfo $codexCurrent $ExpectedSourceCommit $ExpectedPackageDigest $ExpectedVersion $true
+  Get-SPCheckoutInfo $claudeVersioned $ExpectedSourceCommit $ExpectedPackageDigest $ExpectedVersion $false | Out-Null
+  Get-SPCheckoutInfo $codexVersioned $ExpectedSourceCommit $ExpectedPackageDigest $ExpectedVersion $false | Out-Null
+  Assert-ActiveMetadataTarget $claudeCurrent
+  Assert-ActiveMetadataTarget $codexCurrent
 
-$claudeSkillRegistry = Join-Path $ClaudeHome "skills\registry.yaml"
-if (Test-Path -LiteralPath $claudeSkillRegistry) {
-  $hardPins = Select-String -LiteralPath $claudeSkillRegistry -Pattern "superpowers-dev\\superpowers\\(?!current\\)" -ErrorAction SilentlyContinue
-  if ($hardPins) {
-    Add-Error "Claude skills registry entry hard-pins Superpowers version instead of current: $($hardPins.LineNumber -join ', ')"
+  $installedPath = Join-Path $ClaudeHome "plugins\installed_plugins.json"
+  Assert-SPNoReparseAncestors $installedPath "Claude installed manifest"
+  Assert-SPSingleLinkFile $installedPath "Claude installed manifest"
+  if (-not (Test-Path -LiteralPath $installedPath -PathType Leaf)) { throw "Claude installed manifest missing: $installedPath" }
+  $installed = Get-Content -Raw -LiteralPath $installedPath -Encoding utf8 | ConvertFrom-Json
+  if ($null -eq $installed.plugins) { throw "Claude installed manifest has no plugins object" }
+  $pluginNames = @($installed.plugins.PSObject.Properties.Name)
+  if ($pluginNames -contains "superpowers@claude-plugins-official") {
+    throw "Claude still has official Superpowers installed"
   }
-  $missingCurrent = Select-String -LiteralPath $claudeSkillRegistry -Pattern "superpowers-dev\\superpowers\\current\\skills\\using-superpowers\\SKILL.md" -ErrorAction SilentlyContinue
-  if (-not $missingCurrent) {
-    Add-Error "Claude skills registry does not point using-superpowers at stable current pointer"
+  if ($pluginNames -notcontains "superpowers@superpowers-dev") {
+    throw "Claude is missing superpowers@superpowers-dev"
   }
-}
+  $entries = @($installed.plugins."superpowers@superpowers-dev")
+  if ($entries.Count -ne 1) { throw "Claude fork manifest must contain exactly one install entry" }
+  $entry = $entries[0]
+  $expectedClaudeCurrent = Get-SPCanonicalPath $claudeCurrent
+  if (-not (Get-SPCanonicalPath ([string]$entry.installPath)).Equals($expectedClaudeCurrent, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "Claude installPath is outside the exact contained current checkout: $($entry.installPath)"
+  }
+  if ($entry.version -ne $ExpectedVersion -or $entry.gitCommitSha -ne $ExpectedSourceCommit -or
+      $entry.gitTreeSha -ne $claudeInfo.Tree -or $entry.packageDigest -ne $ExpectedPackageDigest) {
+    throw "Claude installed manifest identity mismatch"
+  }
 
-$codexOfficial = Join-Path $CodexHome "plugins\cache\claude-plugins-official\superpowers"
-if (Test-Path -LiteralPath $codexOfficial) {
-  Add-Error "Codex official Superpowers cache exists: $codexOfficial"
-}
+  foreach ($official in @(
+    (Join-Path $ClaudeHome "plugins\cache\claude-plugins-official\superpowers"),
+    (Join-Path $CodexHome "plugins\cache\claude-plugins-official\superpowers")
+  )) {
+    Assert-SPNoReparseAncestors $official "official cache"
+    if ($null -ne (Get-SPItem $official)) { throw "official Superpowers cache remains: $official" }
+  }
 
-$codexCurrent = Join-Path $CodexHome "plugins\cache\superpowers-dev\superpowers\current"
-if (-not (Test-Path -LiteralPath $codexCurrent)) {
-  Add-Error "Codex fork current pointer missing: $codexCurrent"
-} else {
-  $codexCache = Resolve-PluginTarget $codexCurrent
-  if ($codexCache -notmatch "\\superpowers-dev\\superpowers\\$([regex]::Escape($ExpectedVersion))$") {
-    Add-Error "Codex current pointer resolves to wrong target: $codexCache"
+  $registry = Join-Path $ClaudeHome "skills\registry.yaml"
+  Assert-SPNoReparseAncestors $registry "Claude skill registry"
+  Assert-SPSingleLinkFile $registry "Claude skill registry"
+  if (Test-Path -LiteralPath $registry -PathType Leaf) {
+    $registryContent = Get-Content -Raw -LiteralPath $registry -Encoding utf8
+    if ($registryContent -match "superpowers-dev\\superpowers\\(?!current\\)") {
+      throw "Claude skill registry hard-pins a version instead of current"
+    }
+    if ($registryContent -notmatch "superpowers-dev\\superpowers\\current\\skills\\using-superpowers\\SKILL\.md") {
+      throw "Claude skill registry does not point using-superpowers at current"
+    }
   }
-  $codexManifest = Join-Path $codexCache ".codex-plugin\plugin.json"
-  Check-ManifestField $codexManifest "version" $ExpectedVersion
-  Check-ManifestField $codexManifest "repository" $forkUrl
-  Check-ManifestField $codexManifest "interface.websiteURL" $forkUrl
-  Check-ActiveMetadata $codexCache $ExpectedVersion $sourceHead
-  $codexHead = Git-Head $codexCache
-  if ($sourceHead -and $codexHead -and $sourceHead -ne $codexHead) {
-    Add-Error "Codex cache HEAD $codexHead does not match source HEAD $sourceHead"
-  }
+} catch {
+  Add-VerificationError $_.Exception.Message
 }
 
 if ($errors.Count -gt 0) {
-  Write-Host "FAIL: local Superpowers install is not pinned to the fork"
-  foreach ($err in $errors) {
-    Write-Host "  - $err"
-  }
+  Write-Host "FAIL: local Superpowers install failed exact verification"
+  foreach ($errorMessage in $errors) { Write-Host "  - $errorMessage" }
   exit 1
 }
 
-Write-Host "PASS: local Claude/Codex Superpowers installs are pinned to $forkUrl@$ExpectedVersion"
+Write-Host "PASS: exact Claude/Codex Superpowers install verified at $ExpectedSourceCommit ($ExpectedPackageDigest)"
+exit 0

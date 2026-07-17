@@ -9,7 +9,7 @@ $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $pin = Join-Path $root "scripts\pin-local-fork-install.ps1"
 $verify = Join-Path $root "scripts\verify-local-fork-install.ps1"
 $expected = (Get-Content -Raw -LiteralPath (Join-Path $root ".claude-plugin\plugin.json") | ConvertFrom-Json).version
-$sourceHead = (& git -C $root rev-parse HEAD).Trim()
+$approvedDigest = "b070d6682ffd64fc21cd3e507c77be3661cfbe309a49dafd82814f5f676bfdcf"
 $legacyVersion = "6.0.3-vmodel.17"
 $fails = New-Object System.Collections.Generic.List[string]
 
@@ -37,6 +37,7 @@ function Get-StateFingerprint([string]$homePath) {
   function Walk([string]$path) {
     $item = Get-Item -LiteralPath $path -Force
     $relative = $path.Substring($homePath.Length).TrimStart("\").Replace("\", "/")
+    if ($relative -eq ".superpowers-pin" -or $relative.StartsWith(".superpowers-pin/")) { return }
     if ($item.LinkType) {
       $target = @($item.Target) -join ";"
       $records.Add("L|$relative|$target") | Out-Null
@@ -74,7 +75,8 @@ function Seed-OldHome([string]$homePath, [bool]$isClaude) {
   New-Item -ItemType Directory -Force -Path (Join-Path $old ".claude-plugin") | Out-Null
   @{ name = "superpowers"; version = $legacyVersion } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $old ".claude-plugin\plugin.json") -Encoding utf8
   $current = Join-Path $base "current"
-  New-Item -ItemType Junction -Path $current -Target $old | Out-Null
+  New-Item -ItemType Directory -Force -Path $current | Out-Null
+  [IO.File]::WriteAllBytes((Join-Path $current "current-sentinel.bin"), [byte[]](9, 8, 7, 6, 255))
 
   $official = Join-Path $homePath "plugins\cache\claude-plugins-official\superpowers\6.0.3"
   New-Item -ItemType Directory -Force -Path $official | Out-Null
@@ -107,6 +109,7 @@ function Seed-OldHome([string]$homePath, [bool]$isClaude) {
     current = $current
     old = $old
     sentinel_sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $old "old-package.bin")).Hash.ToLowerInvariant()
+    current_sentinel_sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $current "current-sentinel.bin")).Hash.ToLowerInvariant()
   }
 }
 
@@ -143,12 +146,13 @@ function Get-CommitPackageDigest([string]$repo, [string]$commit, [string[]]$rela
 }
 
 function Invoke-PinJson([string]$claudeHome, [string]$codexHome) {
-  $output = @(& $pin -ClaudeHome $claudeHome -CodexHome $codexHome -SourceRepo $root -ExpectedVersion $expected)
+  $output = @(& $pin -ClaudeHome $claudeHome -CodexHome $codexHome -SourceRepo $script:sourceRepo -ExpectedVersion $expected -ExpectedSourceCommit $script:sourceHead -ExpectedPackageDigest $approvedDigest)
   return (($output -join [Environment]::NewLine) | ConvertFrom-Json)
 }
 
 if (-not $ReceiptRoot) {
-  $ReceiptRoot = Join-Path $env:TEMP ("superpowers-pin-transaction-" + [guid]::NewGuid().ToString("N"))
+  $testTemp = if (Test-Path -LiteralPath "C:\tmp" -PathType Container) { "C:\tmp" } else { $env:TEMP }
+  $ReceiptRoot = Join-Path $testTemp ("sp-txn-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
 }
 if (Test-Path -LiteralPath $ReceiptRoot) {
   throw "ReceiptRoot must not already exist: $ReceiptRoot"
@@ -165,11 +169,16 @@ try {
   $seedClaude = Seed-OldHome $claude $true
   $seedCodex = Seed-OldHome $codex $false
   $beforeClaude = Get-StateFingerprint $claude
+  $script:sourceRepo = Join-Path $tmp "source"
+  & git -c core.autocrlf=false -c core.longpaths=true clone --no-local --no-hardlinks --quiet -- "$root" "$script:sourceRepo"
+  if ($LASTEXITCODE -ne 0) { throw "cannot clone clean source" }
+  $script:sourceHead = (& git --no-replace-objects -C $script:sourceRepo rev-parse HEAD).Trim()
+
   $beforeCodex = Get-StateFingerprint $codex
 
   $failureMessage = ""
   try {
-    & $pin -ClaudeHome $claude -CodexHome $codex -SourceRepo $root -ExpectedVersion $expected -SkipVerify -InjectFailureAt AfterCodex | Out-Null
+    & $pin -ClaudeHome $claude -CodexHome $codex -SourceRepo $script:sourceRepo -ExpectedVersion $expected -ExpectedSourceCommit $script:sourceHead -ExpectedPackageDigest $approvedDigest -InjectFailureAt AfterCodex | Out-Null
     Check $false "injected failure did not fail"
   } catch {
     $failureMessage = $_.Exception.Message
@@ -179,8 +188,10 @@ try {
   Check ($failureMessage -like "*Injected failure at AfterCodex*") "missing deterministic injected failure; got '$failureMessage'"
   Check ($afterFailureClaude -eq $beforeClaude) "Claude home bytes/pointer were not restored after injected failure"
   Check ($afterFailureCodex -eq $beforeCodex) "Codex home bytes/pointer were not restored after injected failure"
-  Check ((Resolve-Target $seedClaude.current) -eq (Resolve-Path -LiteralPath $seedClaude.old).Path) "Claude current pointer was not restored to legacy target"
-  Check ((Resolve-Target $seedCodex.current) -eq (Resolve-Path -LiteralPath $seedCodex.old).Path) "Codex current pointer was not restored to legacy target"
+  Check (-not (Get-Item -LiteralPath $seedClaude.current -Force).LinkType) "Claude regular current identity changed during rollback"
+  Check (-not (Get-Item -LiteralPath $seedCodex.current -Force).LinkType) "Codex regular current identity changed during rollback"
+  Check ((Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $seedClaude.current "current-sentinel.bin")).Hash.ToLowerInvariant() -eq $seedClaude.current_sentinel_sha256) "Claude current preimage bytes were not restored"
+  Check ((Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $seedCodex.current "current-sentinel.bin")).Hash.ToLowerInvariant() -eq $seedCodex.current_sentinel_sha256) "Codex current preimage bytes were not restored"
 
   $failureReceipt = [ordered]@{
     injection = "AfterCodex"
@@ -199,7 +210,7 @@ try {
   $mismatchBeforeCodex = Get-StateFingerprint $mismatchCodex
   $mismatchMessage = ""
   try {
-    & $pin -ClaudeHome $mismatchClaude -CodexHome $mismatchCodex -SourceRepo $root -ExpectedVersion $legacyVersion -SkipVerify | Out-Null
+    & $pin -ClaudeHome $mismatchClaude -CodexHome $mismatchCodex -SourceRepo $script:sourceRepo -ExpectedVersion $legacyVersion -ExpectedSourceCommit $script:sourceHead -ExpectedPackageDigest $approvedDigest | Out-Null
     Check $false "version masquerade was accepted"
   } catch {
     $mismatchMessage = $_.Exception.Message
@@ -210,22 +221,26 @@ try {
 
   $first = Invoke-PinJson $claude $codex
   Check ($first.version -eq $expected) "pin result version mismatch"
-  Check ($first.source_head -eq $sourceHead) "pin result source HEAD mismatch"
+  Check ($first.source_head -eq $script:sourceHead) "pin result source HEAD mismatch"
 
-  & $verify -ClaudeHome $claude -CodexHome $codex -SourceRepo $root -ExpectedVersion $expected
+  & $verify -ClaudeHome $claude -CodexHome $codex -ExpectedVersion $expected -ExpectedSourceCommit $script:sourceHead -ExpectedPackageDigest $approvedDigest
   Check ($LASTEXITCODE -eq 0) "verifier failed after successful pin"
 
   $claudeCurrent = Join-Path $claude "plugins\cache\superpowers-dev\superpowers\current"
   $codexCurrent = Join-Path $codex "plugins\cache\superpowers-dev\superpowers\current"
-  $claudeTarget = Resolve-Target $claudeCurrent
-  $codexTarget = Resolve-Target $codexCurrent
-  Check ((Split-Path -Leaf $claudeTarget) -eq $expected) "Claude current does not resolve to $expected"
-  Check ((Split-Path -Leaf $codexTarget) -eq $expected) "Codex current does not resolve to $expected"
+  $claudeTarget = (Resolve-Path -LiteralPath $claudeCurrent).Path
+  $codexTarget = (Resolve-Path -LiteralPath $codexCurrent).Path
+  $claudeVersioned = Join-Path (Split-Path -Parent $claudeCurrent) $expected
+  $codexVersioned = Join-Path (Split-Path -Parent $codexCurrent) $expected
+  Check (-not (Get-Item -LiteralPath $claudeTarget -Force).LinkType) "Claude current is a reparse point"
+  Check (-not (Get-Item -LiteralPath $codexTarget -Force).LinkType) "Codex current is a reparse point"
+  Check ($claudeTarget -ne (Resolve-Path -LiteralPath $claudeVersioned).Path) "Claude current is not a distinct exact checkout"
+  Check ($codexTarget -ne (Resolve-Path -LiteralPath $codexVersioned).Path) "Codex current is not a distinct exact checkout"
   Check ($claudeTarget -notmatch [regex]::Escape($legacyVersion)) "Claude legacy vmodel.17 is still current"
   Check ($codexTarget -notmatch [regex]::Escape($legacyVersion)) "Codex legacy vmodel.17 is still current"
 
-  $tracked = @(& git -C $root ls-files -- ".claude-plugin/plugin.json" ".codex-plugin/plugin.json" "skills")
-  $sourceDigest = Get-CommitPackageDigest $root $sourceHead $tracked
+  $tracked = @(& git -C $script:sourceRepo ls-files -- ".claude-plugin/plugin.json" ".codex-plugin/plugin.json" "skills")
+  $sourceDigest = Get-CommitPackageDigest $script:sourceRepo $script:sourceHead $tracked
   $claudeDigest = Get-PackageDigest $claudeTarget $tracked
   $codexDigest = Get-PackageDigest $codexTarget $tracked
   Check ($claudeDigest -eq $sourceDigest) "Claude manifest/skills digest does not match source bytes"
@@ -233,8 +248,8 @@ try {
 
   $claudeHead = (& git -C $claudeTarget rev-parse HEAD).Trim()
   $codexHead = (& git -C $codexTarget rev-parse HEAD).Trim()
-  Check ($claudeHead -eq $sourceHead) "Claude cache HEAD mismatch"
-  Check ($codexHead -eq $sourceHead) "Codex cache HEAD mismatch"
+  Check ($claudeHead -eq $script:sourceHead) "Claude cache HEAD mismatch"
+  Check ($codexHead -eq $script:sourceHead) "Codex cache HEAD mismatch"
 
   $using = Get-Content -Raw -LiteralPath (Join-Path $claudeTarget "skills\using-superpowers\SKILL.md") -Encoding utf8
   $brainstorming = Get-Content -Raw -LiteralPath (Join-Path $claudeTarget "skills\brainstorming\SKILL.md") -Encoding utf8
@@ -299,7 +314,7 @@ try {
   $second = Invoke-PinJson $claude $codex
   $secondClaudeTarget = Resolve-Target $claudeCurrent
   $secondCodexTarget = Resolve-Target $codexCurrent
-  Check ($second.source_head -eq $sourceHead) "idempotent rerun source HEAD changed"
+  Check ($second.source_head -eq $script:sourceHead) "idempotent rerun source HEAD changed"
   Check ($secondClaudeTarget -eq $firstClaudeTarget) "idempotent rerun changed Claude current target"
   Check ($secondCodexTarget -eq $firstCodexTarget) "idempotent rerun changed Codex current target"
   Check ((Get-PackageDigest $secondClaudeTarget $tracked) -eq $firstClaudeDigest) "idempotent rerun changed Claude source bytes"
@@ -314,7 +329,7 @@ try {
 
   $receipt = [ordered]@{
     schema_version = "1.0"
-    tested_source_head = $sourceHead
+    tested_source_head = $script:sourceHead
     version = $expected
     source_manifest_skills_sha256 = $sourceDigest
     claude_manifest_skills_sha256 = $claudeDigest
@@ -339,7 +354,7 @@ try {
     exit 1
   }
 
-  Write-Host "PASS: transactional temp-home pin ($expected @ $sourceHead)"
+  Write-Host "PASS: transactional temp-home pin ($expected @ $script:sourceHead)"
   Write-Host "RECEIPT: $receiptPath"
   Write-Host "CLAUDE_MANIFEST: $claudeManifestPath"
   Write-Host "CODEX_MANIFEST: $codexManifestPath"

@@ -126,14 +126,27 @@ Assert-Contains $verifySpec "skill-ui-human" "verify-spec must depend on skill-u
 Assert-Contains $verifySpec "ui_human_evidence" "verify-spec must require runtime UI-human evidence in UI MATCHES verdicts"
 
 $pinScript = Get-Content -Raw -LiteralPath (Join-Path $Root "scripts\pin-local-fork-install.ps1")
-Assert-Contains $pinScript "Repin-ClaudeSkillRegistry" "pin-local-fork-install must repin Claude skills registry entries"
+Assert-Contains $pinScript "New-ClaudeRegistryStage" "pin-local-fork-install must stage repinned Claude skills registry entries transactionally"
 Assert-Contains $pinScript "skills\\registry.yaml" "pin-local-fork-install must update Claude skills/registry.yaml"
 Assert-Contains $pinScript "superpowers-dev\\superpowers\\current" "pin-local-fork-install must route registry entries through current"
+Assert-Contains $pinScript "ExpectedSourceCommit" "pin-local-fork-install must require an exact approved source commit"
+Assert-Contains $pinScript "ExpectedPackageDigest" "pin-local-fork-install must require the approved package digest"
+Assert-Contains $pinScript "Get-SPSourceIdentity" "pin-local-fork-install must validate source identity before deployment"
+Assert-Contains $pinScript "Assert-TransactionJournalShape" "pin-local-fork-install must bind recovery to an exact managed journal schema"
+Assert-Contains $pinScript "AfterVerifiedBeforeFinalize" "pin-local-fork-install must expose the verified-before-finalize crash seam"
+Assert-Contains $pinScript "DuringFinalize" "pin-local-fork-install must expose the mid-finalization crash seam"
+Assert-Contains $pinScript "source_binding_scope" "pin-local-fork-install receipts must bind the entire tracked Git tree"
+if ($pinScript -match "SkipVerify") { throw "pin-local-fork-install must not expose a verifier bypass" }
 
 $verifyInstall = Get-Content -Raw -LiteralPath (Join-Path $Root "scripts\verify-local-fork-install.ps1")
 Assert-Contains $verifyInstall "skills\\registry.yaml" "verify-local-fork-install must inspect Claude skills registry"
 Assert-Contains $verifyInstall "hard-pins" "verify-local-fork-install must reject hard-pinned Superpower registry entries"
-Assert-Contains $verifyInstall "superpowers-dev\\superpowers\\current" "verify-local-fork-install must require current pointer in registry entries"
+Assert-Contains $verifyInstall "superpowers-dev\\\\superpowers\\\\current" "verify-local-fork-install must require current checkout in registry entries"
+Assert-Contains $verifyInstall "ExpectedSourceCommit" "verify-local-fork-install must bind verification to an exact source commit"
+Assert-Contains $verifyInstall "ExpectedPackageDigest" "verify-local-fork-install must bind verification to the approved package digest"
+Assert-Contains $verifyInstall "Get-SPCheckoutInfo" "verify-local-fork-install must run the exact checkout content verifier"
+Assert-Contains $verifyInstall "entries.Count -ne 1" "verify-local-fork-install must require exactly one fork install entry"
+Assert-Contains $verifyInstall "gitTreeSha" "verify-local-fork-install must bind installed metadata to the full Git tree"
 
 # --- maturity feedback-loop contracts (job 2026-06-30-superpower-maturity-feedback-loop) ---
 Assert-Contains $brainstorming "stakeholder-needs\.json" "brainstorming must require SYS.1 stakeholder-needs.json before Spec Draft"

@@ -15,12 +15,14 @@ function Assert-Contains {
 
 $pin = Get-Content -Raw -LiteralPath (Join-Path $Root "scripts\pin-local-fork-install.ps1")
 Assert-Contains $pin "current" "pin-local-fork-install must maintain a stable current pointer"
-Assert-Contains $pin "Junction" "pin-local-fork-install must use a Windows-safe directory junction for current"
+Assert-Contains $pin "New-SPExactCheckout" "pin-local-fork-install must stage current as an exact Git checkout"
+Assert-Contains $pin "Assert-SPPlainTree" "pin-local-fork-install must reject reparse points instead of following a current link"
 Assert-Contains $pin "\.superpowers-active\.json" "pin-local-fork-install must write resolved active metadata"
 
 $verify = Get-Content -Raw -LiteralPath (Join-Path $Root "scripts\verify-local-fork-install.ps1")
-Assert-Contains $verify "\\superpowers-dev\\superpowers\\current" "verify-local-fork-install must require installPath to point at current"
-Assert-Contains $verify "Resolve-PluginTarget" "verify-local-fork-install must verify the resolved current target"
+Assert-Contains $verify "expectedClaudeCurrent" "verify-local-fork-install must require installPath to equal the exact contained current checkout"
+Assert-Contains $verify "Get-SPCheckoutInfo" "verify-local-fork-install must verify the exact current checkout"
+Assert-Contains $verify "Assert-SPContained" "verify-local-fork-install must require current to stay contained in its home"
 Assert-Contains $verify "\.superpowers-active\.json" "verify-local-fork-install must verify active metadata"
 
 $writingSkills = Get-Content -Raw -LiteralPath (Join-Path $Root "skills\writing-skills\SKILL.md")

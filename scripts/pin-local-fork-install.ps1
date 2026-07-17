@@ -1,453 +1,608 @@
 <#
 .SYNOPSIS
-  Pin the local Claude + Codex Superpowers install to this fork (oxydavid-maxx/superpowers)
-  at the source repo's current version/HEAD. Idempotent and temp-home-friendly.
+  Transactionally pin Claude and Codex Superpowers installs to one approved fork commit.
 
 .DESCRIPTION
-  Durable replacement for one-off manual cache surgery (UPG-F1). For the Claude home and the
-  Codex home it:
-    * (re)creates a versioned fork cache  cache/superpowers-dev/superpowers/<version>  as a
-      git checkout of the source at HEAD (so cache HEAD == source HEAD);
-    * switches a stable  cache/superpowers-dev/superpowers/current  pointer to that versioned
-      cache, then marks ONLY the resolved active cache .in_use;
-    * QUARANTINES (moves, never deletes) stale fork caches + any official-marketplace
-      Superpowers caches into plugins/.quarantine-superpowers-<ts>/;
-    * for Claude: backs up installed_plugins.json, removes a superpowers@claude-plugins-official
-      entry if present, and points superpowers@superpowers-dev at the stable current pointer
-      (version + gitCommitSha updated). Other plugins and known_marketplaces.json are untouched.
-  Then runs verify-local-fork-install.ps1 unless -SkipVerify.
+  The source identity is validated before either configured home is created. Both active
+  checkouts are staged byte-exactly before deployment. Deployment is protected by per-home
+  exclusive locks, preimage compare-and-swap fingerprints, and a mirrored durable journal
+  outside plugin caches. A later invocation rolls any prepared/deploying/rolling-back journal
+  back before beginning a new transaction. Recovery assets are retained until exact validation.
 
-  Safe to re-run: a cache already at HEAD is left in place; an absent official entry is a no-op.
-
-.NOTES
-  Only disables/quarantines official *Superpowers* artifacts — it never removes the official
-  marketplace registration (known_marketplaces.json is not touched).
+  Residual non-goals: this script does not preserve or compare ACLs, alternate data streams,
+  hardlink topology, or timestamps. Those properties are intentionally outside the content-
+  identity receipt and must be controlled separately when they matter.
 #>
 param(
   [string]$ClaudeHome = "$env:USERPROFILE\.claude",
-  [string]$CodexHome  = "$env:USERPROFILE\.codex",
+  [string]$CodexHome = "$env:USERPROFILE\.codex",
   [string]$SourceRepo = "",
   [string]$ExpectedVersion = "",
-  [switch]$SkipVerify,
+  [string]$ExpectedSourceCommit = "",
+  [string]$ExpectedPackageDigest = "",
   [ValidateSet("None", "AfterClaude", "AfterCodex", "BeforeVerify")]
-  [string]$InjectFailureAt = "None"
+  [string]$InjectFailureAt = "None",
+  [ValidateSet("None", "AfterClaudeBeforeCodex", "AfterPointerRemoval", "AfterVerifiedBeforeFinalize", "DuringFinalize")]
+  [string]$HardKillAt = "None",
+  [ValidateRange(0, 30000)]
+  [int]$HoldLockMilliseconds = 0
 )
-$ErrorActionPreference = "Stop"
 
-function Read-ManifestAtHead([string]$relativePath, [string]$commit) {
-  $spec = "{0}:{1}" -f $commit, $relativePath
-  $raw = @(& git -C $SourceRepo show $spec 2>$null)
-  if ($LASTEXITCODE -ne 0) {
-    throw "cannot read $relativePath from source commit $commit"
-  }
-  return (($raw -join [Environment]::NewLine) | ConvertFrom-Json)
-}
+$ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "local-fork-security.ps1")
 
 if (-not $SourceRepo) { $SourceRepo = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path }
-$SourceRepo = (Resolve-Path -LiteralPath $SourceRepo).Path
-$headOutput = @(& git -C $SourceRepo rev-parse HEAD 2>$null)
-if ($LASTEXITCODE -ne 0 -or $headOutput.Count -eq 0) {
-  throw "cannot resolve source HEAD: $SourceRepo"
-}
-$sourceHead = $headOutput[0].Trim()
-$sourceClaudeManifest = Read-ManifestAtHead ".claude-plugin/plugin.json" $sourceHead
-$sourceCodexManifest = Read-ManifestAtHead ".codex-plugin/plugin.json" $sourceHead
-$sourceVersion = [string]$sourceClaudeManifest.version
-if (-not $sourceVersion -or $sourceCodexManifest.version -ne $sourceVersion) {
-  throw "source commit $sourceHead has inconsistent Claude/Codex manifest versions"
-}
-if (-not $ExpectedVersion) {
-  $ExpectedVersion = $sourceVersion
-} elseif ($ExpectedVersion -ne $sourceVersion) {
-  throw "ExpectedVersion '$ExpectedVersion' does not match source version '$sourceVersion' at $sourceHead"
-}
-
-$runId = [guid]::NewGuid().ToString("N").Substring(0, 8)
-$ts = (Get-Date).ToUniversalTime().ToString("yyyyMMddTHHmmssfffZ") + "-" + $runId
-$linkMarkerName = ".pin-link-state-" + $runId + ".json"
-$result = [ordered]@{ version = $ExpectedVersion; source_head = $sourceHead;
-                      claude_active_path = $null; codex_cache_path = $null;
-                      quarantine_paths = @(); backup_paths = @() }
-$temporaryPaths = New-Object System.Collections.Generic.List[string]
-
-function Log($m) { Write-Host "[pin] $m" }
-
-function Get-PathItem([string]$path) {
-  return Get-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue
-}
-
-function Remove-PathNoFollow([string]$path) {
-  $item = Get-PathItem $path
-  if ($null -eq $item) { return }
-  if ($item.LinkType -eq "Junction" -or $item.LinkType -eq "SymbolicLink") {
-    if ($item.PSIsContainer) {
-      [System.IO.Directory]::Delete($path, $false)
-    } else {
-      Remove-Item -LiteralPath $path -Force
-    }
-    return
-  }
-  if ($item.PSIsContainer) {
-    foreach ($child in @(Get-ChildItem -LiteralPath $path -Force)) {
-      Remove-PathNoFollow $child.FullName
-    }
-    [System.IO.Directory]::Delete($path, $false)
-    return
-  }
-  Remove-Item -LiteralPath $path -Force
-}
-
-function Restore-SnapshotLink([string]$destination, $state) {
-  $target = [string]$state.target
-  $linkType = [string]$state.linkType
-  if ($null -ne (Get-PathItem $target)) {
-    New-Item -ItemType $linkType -Path $destination -Target $target | Out-Null
-    return
-  }
-  if ($destination.Contains('"') -or $target.Contains('"')) {
-    throw "cannot restore dangling link containing a quote: $destination"
-  }
-  $switch = ""
-  if ($linkType -eq "Junction") {
-    $switch = "/J "
-  } elseif ($linkType -eq "SymbolicLink" -and [bool]$state.isContainer) {
-    $switch = "/D "
-  } elseif ($linkType -ne "SymbolicLink") {
-    throw "unsupported snapshot link type: $linkType"
-  }
-  $commandLine = 'mklink {0}"{1}" "{2}"' -f $switch, $destination, $target
-  $commandProcessor = $env:ComSpec
-  if (-not $commandProcessor) { $commandProcessor = "cmd.exe" }
-  & $commandProcessor /d /c $commandLine | Out-Null
-  if ($LASTEXITCODE -ne 0) {
-    throw "cannot restore dangling $linkType '$destination' -> '$target'"
-  }
-}
-
-function Copy-PathPreservingLinks([string]$source, [string]$destination) {
-  $item = Get-PathItem $source
-  if ($null -eq $item) { throw "snapshot source disappeared: $source" }
-  $parent = Split-Path -Parent $destination
-  if ($parent) { New-Item -ItemType Directory -Force -Path $parent | Out-Null }
-  $linkMarker = Join-Path $source $linkMarkerName
-  if ($item.PSIsContainer -and -not $item.LinkType -and (Test-Path -LiteralPath $linkMarker -PathType Leaf)) {
-    $state = Get-Content -Raw -LiteralPath $linkMarker -Encoding utf8 | ConvertFrom-Json
-    Restore-SnapshotLink $destination $state
-    return
-  }
-  if ($item.LinkType -eq "Junction" -or $item.LinkType -eq "SymbolicLink") {
-    $target = @($item.Target)[0]
-    New-Item -ItemType Directory -Force -Path $destination | Out-Null
-    [ordered]@{
-      schema_version = "1.0"
-      linkType = [string]$item.LinkType
-      target = [string]$target
-      isContainer = [bool]$item.PSIsContainer
-    } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $destination $linkMarkerName) -Encoding utf8
-    return
-  }
-  if ($item.PSIsContainer) {
-    New-Item -ItemType Directory -Force -Path $destination | Out-Null
-    foreach ($child in @(Get-ChildItem -LiteralPath $source -Force | Sort-Object Name)) {
-      Copy-PathPreservingLinks $child.FullName (Join-Path $destination $child.Name)
-    }
-    return
-  }
-  Copy-Item -LiteralPath $source -Destination $destination -Force
-}
-
-function Capture-PathState([string]$path, [string]$snapshotDir, [string]$name) {
-  $item = Get-PathItem $path
-  $backup = Join-Path $snapshotDir $name
-  if ($null -ne $item) {
-    Copy-PathPreservingLinks $path $backup
-  }
-  return [pscustomobject]@{
-    path = $path
-    existed = ($null -ne $item)
-    backup = $backup
-  }
-}
-
-function Capture-HomeState([string]$homeDir, [string]$name, [bool]$includeClaudeFiles, [string]$transactionRoot) {
-  $snapshotDir = Join-Path $transactionRoot $name
-  New-Item -ItemType Directory -Force -Path $snapshotDir | Out-Null
-  $paths = @(
-    (Join-Path $homeDir "plugins\cache\superpowers-dev\superpowers"),
-    (Join-Path $homeDir "plugins\cache\claude-plugins-official\superpowers")
-  )
-  if ($includeClaudeFiles) {
-    $paths += (Join-Path $homeDir "plugins\installed_plugins.json")
-    $paths += (Join-Path $homeDir "skills\registry.yaml")
-  }
-  $entries = @()
-  for ($i = 0; $i -lt $paths.Count; $i++) {
-    $entries += Capture-PathState $paths[$i] $snapshotDir ("path-" + $i)
-  }
-  $parents = @(
-    $homeDir,
-    (Join-Path $homeDir "plugins"),
-    (Join-Path $homeDir "plugins\cache"),
-    (Join-Path $homeDir "plugins\cache\superpowers-dev"),
-    (Join-Path $homeDir "plugins\cache\claude-plugins-official")
-  )
-  if ($includeClaudeFiles) { $parents += (Join-Path $homeDir "skills") }
-  $parentStates = @()
-  foreach ($parentPath in $parents) {
-    $parentStates += [pscustomobject]@{
-      path = $parentPath
-      existed = ($null -ne (Get-PathItem $parentPath))
-    }
-  }
-  return [pscustomobject]@{
-    paths = $entries
-    parents = $parentStates
-  }
-}
-
-function Restore-HomeState($state) {
-  foreach ($entry in @($state.paths)) {
-    Remove-PathNoFollow $entry.path
-    if ($entry.existed) {
-      Copy-PathPreservingLinks $entry.backup $entry.path
-    }
-  }
-  for ($i = $state.parents.Count - 1; $i -ge 0; $i--) {
-    $parent = $state.parents[$i]
-    if (-not $parent.existed) {
-      $item = Get-PathItem $parent.path
-      if ($null -ne $item -and $item.PSIsContainer -and -not $item.LinkType) {
-        if (@(Get-ChildItem -LiteralPath $parent.path -Force).Count -eq 0) {
-          [System.IO.Directory]::Delete($parent.path, $false)
-        }
-      }
-    }
-  }
-}
 
 function Invoke-InjectedFailure([string]$point) {
-  if ($InjectFailureAt -eq $point) {
-    throw "Injected failure at $point"
+  if ($InjectFailureAt -eq $point) { throw "Injected failure at $point" }
+}
+
+function Invoke-HardKill([string]$point) {
+  if ($HardKillAt -ne $point) { return }
+  [Console]::Error.WriteLine("Hard-kill injection at $point")
+  try { Stop-Process -Id $PID -Force -ErrorAction Stop } catch { [Environment]::Exit(197) }
+  [Environment]::Exit(197)
+}
+
+function Get-ControlPaths([string]$claude, [string]$codex) {
+  return @(
+    (Join-Path $claude ".superpowers-pin"),
+    (Join-Path $codex ".superpowers-pin")
+  )
+}
+
+function Assert-ScopedExistingState([string]$homePath, [bool]$isClaude) {
+  $forkBase = Join-Path $homePath "plugins\cache\superpowers-dev\superpowers"
+  $official = Join-Path $homePath "plugins\cache\claude-plugins-official\superpowers"
+  foreach ($path in @($forkBase, $official)) {
+    Assert-SPNoReparseAncestors $path "managed cache path"
+    if ($null -ne (Get-SPItem $path)) { Assert-SPPlainTree $path "managed cache" }
+  }
+  if ($isClaude) {
+    foreach ($file in @(
+      (Join-Path $homePath "plugins\installed_plugins.json"),
+      (Join-Path $homePath "skills\registry.yaml")
+    )) {
+      Assert-SPNoReparseAncestors $file "managed metadata path"
+      Assert-SPSingleLinkFile $file "managed metadata"
+    }
   }
 }
 
-# (re)create cache/superpowers-dev/superpowers/<version> as a git checkout of source@HEAD.
-function Ensure-ForkCache([string]$cacheBase) {
-  $dest = Join-Path $cacheBase $ExpectedVersion
-  $fresh = $true
-  if (Test-Path -LiteralPath (Join-Path $dest ".git")) {
-    $head = @(& git -C $dest rev-parse HEAD 2>$null)
-    $headOk = ($LASTEXITCODE -eq 0 -and $head.Count -gt 0 -and $head[0].Trim() -eq $sourceHead)
-    $localAutoCrlf = @(& git -C $dest config --local --get core.autocrlf 2>$null)
-    $byteExactConfig = ($LASTEXITCODE -eq 0 -and $localAutoCrlf.Count -gt 0 -and $localAutoCrlf[0].Trim() -eq "false")
-    if ($headOk -and $byteExactConfig) {
-      $trackedChanges = @(& git -C $dest status --porcelain --untracked-files=no 2>$null)
-      if ($LASTEXITCODE -eq 0 -and $trackedChanges.Count -eq 0) {
-        $fresh = $false
+function Open-TransactionLocks([string[]]$controlPaths) {
+  $streams = New-Object System.Collections.Generic.List[System.IO.FileStream]
+  try {
+    foreach ($control in @($controlPaths | Sort-Object)) {
+      New-Item -ItemType Directory -Force -Path $control | Out-Null
+      Assert-SPNoReparseAncestors $control "transaction control directory"
+      $lockPath = Join-Path $control "transaction.lock"
+      Assert-SPSingleLinkFile $lockPath "transaction lock"
+      try {
+        $stream = New-Object System.IO.FileStream(
+          $lockPath,
+          [System.IO.FileMode]::OpenOrCreate,
+          [System.IO.FileAccess]::ReadWrite,
+          [System.IO.FileShare]::None,
+          64,
+          [System.IO.FileOptions]::WriteThrough
+        )
+      } catch {
+        throw "exclusive transaction lock is held or unsafe: $lockPath"
       }
+      $streams.Add($stream) | Out-Null
+    }
+    return $streams
+  } catch {
+    foreach ($stream in @($streams)) { $stream.Dispose() }
+    throw
+  }
+}
+
+function Close-TransactionLocks($streams) {
+  foreach ($stream in @($streams)) {
+    if ($null -ne $stream) { $stream.Dispose() }
+  }
+}
+
+function Get-JournalPaths([string[]]$controlPaths) {
+  return @($controlPaths | ForEach-Object { Join-Path $_ "transaction.json" })
+}
+
+function Write-TransactionJournal($journal, [string[]]$journalPaths) {
+  $journal.sequence = [int64]$journal.sequence + 1
+  $journal.updated_at = [DateTime]::UtcNow.ToString("o")
+  foreach ($path in $journalPaths) {
+    Assert-SPSingleLinkFile $path "transaction journal"
+    Write-SPDurableJson $path $journal
+  }
+}
+
+function Remove-TransactionJournals([string[]]$journalPaths) {
+  foreach ($path in $journalPaths) {
+    Assert-SPSingleLinkFile $path "transaction journal"
+    if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Force }
+  }
+}
+
+function Assert-SPExactPath([string]$actual, [string]$expected, [string]$label) {
+  if (-not (Get-SPCanonicalPath $actual).Equals((Get-SPCanonicalPath $expected), [StringComparison]::OrdinalIgnoreCase)) {
+    throw "durable journal $label is outside its exact managed path"
+  }
+}
+
+function Assert-TransactionJournalShape($journal, [string]$claude, [string]$codex, [string[]]$controlPaths) {
+  if ([string]$journal.schema_version -ne "2.0") { throw "durable journal schema is not exactly 2.0" }
+  if ([string]$journal.transaction_id -notmatch "^[0-9]{8}T[0-9]{9}Z-[0-9a-f]{8}$") { throw "durable journal transaction id is invalid" }
+  $sequence = [int64]0
+  if (-not [int64]::TryParse([string]$journal.sequence, [ref]$sequence) -or $sequence -lt 0) { throw "durable journal sequence is invalid" }
+  if (@("prepared", "deploying", "rolling-back", "verified") -notcontains [string]$journal.state) { throw "durable journal state is invalid" }
+  if ([string]$journal.source_commit -notmatch "^[0-9a-f]{40,64}$" -or [string]$journal.source_tree -notmatch "^[0-9a-f]{40,64}$") {
+    throw "durable journal source binding is invalid"
+  }
+  if ([string]$journal.package_digest -ne (Get-SPApprovedPackageDigest)) { throw "durable journal package digest is invalid" }
+  Assert-SPExactPath ([string]$journal.claude_home) $claude "Claude home"
+  Assert-SPExactPath ([string]$journal.codex_home) $codex "Codex home"
+  Assert-SPExactPath $controlPaths[0] (Join-Path $claude ".superpowers-pin") "Claude control root"
+  Assert-SPExactPath $controlPaths[1] (Join-Path $codex ".superpowers-pin") "Codex control root"
+
+  $declaredAssets = @($journal.asset_roots)
+  if ($declaredAssets.Count -ne 2) { throw "durable journal must declare exactly two asset roots" }
+  $assetByControl = @{}
+  for ($assetIndex = 0; $assetIndex -lt 2; $assetIndex++) {
+    $asset = Get-SPCanonicalPath ([string]$declaredAssets[$assetIndex])
+    $control = Get-SPCanonicalPath $controlPaths[$assetIndex]
+    if (-not (Split-Path -Parent $asset).Equals($control, [StringComparison]::OrdinalIgnoreCase) -or
+        (Split-Path -Leaf $asset) -notmatch "^a-[0-9a-f]{8}$") {
+      throw "durable journal asset root is not a direct transaction-control child"
+    }
+    Assert-SPNoReparseAncestors $asset "durable journal asset root"
+    $assetByControl[$control] = $asset
+  }
+  if (-not (Split-Path -Leaf $declaredAssets[0]).Equals((Split-Path -Leaf $declaredAssets[1]), [StringComparison]::OrdinalIgnoreCase)) {
+    throw "durable journal mirrored asset roots disagree"
+  }
+
+  $definitions = @{
+    "claude-fork-base" = [pscustomobject]@{ Home = $claude; Control = $controlPaths[0]; Target = Join-Path $claude "plugins\cache\superpowers-dev\superpowers"; StagedLeaf = "s" }
+    "codex-fork-base" = [pscustomobject]@{ Home = $codex; Control = $controlPaths[1]; Target = Join-Path $codex "plugins\cache\superpowers-dev\superpowers"; StagedLeaf = "s" }
+    "claude-official" = [pscustomobject]@{ Home = $claude; Control = $controlPaths[0]; Target = Join-Path $claude "plugins\cache\claude-plugins-official\superpowers"; StagedLeaf = "" }
+    "codex-official" = [pscustomobject]@{ Home = $codex; Control = $controlPaths[1]; Target = Join-Path $codex "plugins\cache\claude-plugins-official\superpowers"; StagedLeaf = "" }
+    "claude-manifest" = [pscustomobject]@{ Home = $claude; Control = $controlPaths[0]; Target = Join-Path $claude "plugins\installed_plugins.json"; StagedLeaf = "stage-installed_plugins.json" }
+    "claude-registry" = [pscustomobject]@{ Home = $claude; Control = $controlPaths[0]; Target = Join-Path $claude "skills\registry.yaml"; StagedLeaf = "stage-registry.yaml" }
+  }
+  $records = @($journal.records)
+  if ($records.Count -notin @(5, 6)) { throw "durable journal record count is invalid" }
+  $expectedNames = @("claude-fork-base", "codex-fork-base", "claude-official", "codex-official", "claude-manifest")
+  if ($records.Count -eq 6) { $expectedNames += "claude-registry" }
+  for ($recordIndex = 0; $recordIndex -lt $records.Count; $recordIndex++) {
+    $record = $records[$recordIndex]
+    $name = [string]$record.name
+    if ($name -cne $expectedNames[$recordIndex] -or -not $definitions.ContainsKey($name)) {
+      throw "durable journal record name/order is invalid"
+    }
+    $definition = $definitions[$name]
+    $control = Get-SPCanonicalPath ([string]$definition.Control)
+    $asset = [string]$assetByControl[$control]
+    Assert-SPExactPath ([string]$record.home) ([string]$definition.Home) "record home"
+    Assert-SPExactPath ([string]$record.target) ([string]$definition.Target) "record target"
+    Assert-SPExactPath ([string]$record.asset_root) $asset "record asset root"
+    Assert-SPExactPath ([string]$record.backup) (Join-Path $asset ("backup-" + $name)) "record backup"
+    if ([string]::IsNullOrWhiteSpace([string]$definition.StagedLeaf)) {
+      if (-not [string]::IsNullOrWhiteSpace([string]$record.staged)) { throw "durable journal removal record has a staged path" }
+    } else {
+      Assert-SPExactPath ([string]$record.staged) (Join-Path $asset ([string]$definition.StagedLeaf)) "record stage"
+    }
+    if ([string]$record.preimage_fingerprint -notmatch "^[0-9a-f]{64}$" -or [string]$record.replacement_fingerprint -notmatch "^[0-9a-f]{64}$") {
+      throw "durable journal record fingerprint is invalid"
+    }
+    if (@("prepared", "removing", "removed", "installed", "rolled-back", "finalized") -notcontains [string]$record.phase) {
+      throw "durable journal record phase is invalid"
     }
   }
-  if ($fresh) {
-    Remove-PathNoFollow $dest
-    New-Item -ItemType Directory -Force -Path $cacheBase | Out-Null
-    & git clone --local --quiet -- "$SourceRepo" "$dest" | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "git clone failed for $SourceRepo -> $dest" }
-    & git -C "$dest" config --local core.autocrlf false
-    if ($LASTEXITCODE -ne 0) { throw "cannot set byte-exact checkout policy for $dest" }
-    & git -C "$dest" -c core.autocrlf=false checkout --quiet $sourceHead | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "git checkout failed for $dest@$sourceHead" }
-    & git -C "$dest" -c core.autocrlf=false checkout-index --all --force
-    if ($LASTEXITCODE -ne 0) { throw "byte-exact checkout-index failed for $dest@$sourceHead" }
-    Log "created fork cache $dest @ $sourceHead"
+}
+function Read-PendingJournal([string[]]$journalPaths, [string]$claude, [string]$codex, [string[]]$controlPaths) {
+  $candidates = New-Object System.Collections.Generic.List[object]
+  foreach ($path in $journalPaths) {
+    Assert-SPNoReparseAncestors $path "transaction journal"
+    Assert-SPSingleLinkFile $path "transaction journal"
+    if (Test-Path -LiteralPath $path -PathType Leaf) {
+      $raw = Get-Content -Raw -LiteralPath $path -Encoding utf8
+      $value = $raw | ConvertFrom-Json
+      $candidates.Add([pscustomobject]@{ Path = $path; Raw = $raw; Value = $value; Sequence = [int64]$value.sequence }) | Out-Null
+    }
+  }
+  if ($candidates.Count -eq 0) { return $null }
+  $ids = @($candidates | ForEach-Object { [string]$_.Value.transaction_id } | Sort-Object -Unique)
+  if ($ids.Count -ne 1) { throw "conflicting durable transaction journals" }
+  $highestSequence = [int64](@($candidates | Sort-Object Sequence -Descending)[0].Sequence)
+  $latest = @($candidates | Where-Object { [int64]$_.Sequence -eq $highestSequence })
+  if ($latest.Count -gt 1) {
+    $firstRaw = [string]$latest[0].Raw
+    foreach ($candidate in $latest) {
+      if ([string]$candidate.Raw -cne $firstRaw) { throw "conflicting same-sequence durable transaction journals" }
+    }
+  }
+  $journal = $latest[0].Value
+  Assert-TransactionJournalShape $journal $claude $codex $controlPaths
+  return $journal
+}
+
+function Move-Checked([string]$source, [string]$destination, [string]$allowedRoot) {
+  Assert-SPContained $allowedRoot $source "move source"
+  Assert-SPContained $allowedRoot $destination "move destination"
+  Assert-SPNoReparseAncestors $source "move source"
+  Assert-SPNoReparseAncestors (Split-Path -Parent $destination) "move destination"
+  Assert-SPPlainTree $source "move source"
+  if ($null -ne (Get-SPItem $destination)) { throw "move destination already exists: $destination" }
+  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $destination) | Out-Null
+  Move-Item -LiteralPath $source -Destination $destination
+}
+
+function Remove-AssetRoots($journal, [string[]]$controlPaths) {
+  foreach ($asset in @($journal.asset_roots)) {
+    $assetPath = Get-SPCanonicalPath ([string]$asset)
+    $owner = @($controlPaths | Where-Object { Test-SPPathContained $_ $assetPath $false })
+    if ($owner.Count -ne 1) { throw "journal asset root is outside transaction control: $assetPath" }
+    if ($null -ne (Get-SPItem $assetPath)) { Remove-SPTree $assetPath $owner[0] }
+  }
+}
+
+function Recover-Transaction($journal, [string[]]$journalPaths, [string[]]$controlPaths) {
+  $claude = Split-Path -Parent $controlPaths[0]
+  $codex = Split-Path -Parent $controlPaths[1]
+  Assert-TransactionJournalShape $journal $claude $codex $controlPaths
+  if ([string]$journal.state -eq "verified") {
+    Finalize-VerifiedTransaction $journal $journalPaths $controlPaths $null
+    return
+  }
+  if (@("prepared", "deploying", "rolling-back") -notcontains [string]$journal.state) {
+    throw "unsupported durable journal state: $($journal.state)"
+  }
+  $journal.state = "rolling-back"
+  Write-TransactionJournal $journal $journalPaths
+  $records = @($journal.records)
+  for ($index = $records.Count - 1; $index -ge 0; $index--) {
+    $record = $records[$index]
+    $target = Get-SPCanonicalPath ([string]$record.target)
+    $backup = Get-SPCanonicalPath ([string]$record.backup)
+    $assetRoot = Get-SPCanonicalPath ([string]$record.asset_root)
+    Assert-SPContained ([string]$record.home) $target "recovery target"
+    Assert-SPContained $assetRoot $backup "recovery backup"
+    $targetExists = $null -ne (Get-SPItem $target)
+    $backupExists = $null -ne (Get-SPItem $backup)
+    if ($backupExists) {
+      if ($targetExists) {
+        $actual = Get-SPTreeFingerprint $target
+        if ($actual -ne [string]$record.replacement_fingerprint) {
+          throw "recovery CAS rejected changed replacement: $target"
+        }
+        $discard = Join-Path $assetRoot ("discard-" + $index)
+        Move-Checked $target $discard ([string]$record.home)
+      }
+      Move-Checked $backup $target ([string]$record.home)
+    } elseif ($targetExists) {
+      $actual = Get-SPTreeFingerprint $target
+      if ([string]$record.preimage_fingerprint -eq (Get-SPStringSha256 "ABSENT")) {
+        if ($actual -ne [string]$record.replacement_fingerprint) {
+          throw "recovery CAS rejected changed new target: $target"
+        }
+        $discard = Join-Path $assetRoot ("discard-" + $index)
+        Move-Checked $target $discard ([string]$record.home)
+      } elseif ($actual -ne [string]$record.preimage_fingerprint) {
+        throw "recovery CAS rejected changed preimage: $target"
+      }
+    } elseif ([string]$record.preimage_fingerprint -ne (Get-SPStringSha256 "ABSENT")) {
+      throw "recovery lost both target and backup: $target"
+    }
+    if ((Get-SPTreeFingerprint $target) -ne [string]$record.preimage_fingerprint) {
+      throw "recovery did not restore exact preimage: $target"
+    }
+    $record.phase = "rolled-back"
+    Write-TransactionJournal $journal $journalPaths
+  }
+  Remove-AssetRoots $journal $controlPaths
+  Remove-TransactionJournals $journalPaths
+}
+
+function New-ClaudeManifestStage([string]$homePath, [string]$destination, [string]$activePath, $identity) {
+  $installed = Join-Path $homePath "plugins\installed_plugins.json"
+  if (Test-Path -LiteralPath $installed -PathType Leaf) {
+    $document = Get-Content -Raw -LiteralPath $installed -Encoding utf8 | ConvertFrom-Json
   } else {
-    Log "fork cache already at HEAD: $dest"
+    $document = [pscustomobject][ordered]@{ version = 2; plugins = [pscustomobject]@{} }
   }
-  New-Item -ItemType File -Force -Path (Join-Path $dest ".in_use") | Out-Null
-  return $dest
+  if ($null -eq $document.PSObject.Properties["plugins"] -or $null -eq $document.plugins) {
+    $document | Add-Member -MemberType NoteProperty -Name plugins -Value ([pscustomobject]@{}) -Force
+  }
+  $document.plugins.PSObject.Properties.Remove("superpowers@claude-plugins-official")
+  $existing = @($document.plugins."superpowers@superpowers-dev")
+  $scope = if ($existing.Count -gt 0 -and $existing[0].scope) { [string]$existing[0].scope } else { "user" }
+  $installedAt = if ($existing.Count -gt 0 -and $existing[0].installedAt) { [string]$existing[0].installedAt } else { [DateTime]::UtcNow.ToString("o") }
+  $entry = [pscustomobject][ordered]@{
+    scope = $scope
+    installedAt = $installedAt
+    installPath = $activePath
+    version = $identity.Version
+    gitCommitSha = $identity.Commit
+    gitTreeSha = $identity.Tree
+    packageDigest = $identity.PackageDigest
+    lastUpdated = [DateTime]::UtcNow.ToString("o")
+  }
+  $document.plugins | Add-Member -MemberType NoteProperty -Name "superpowers@superpowers-dev" -Value @($entry) -Force
+  Write-SPDurableJson $destination $document
 }
 
-function Write-ActiveMetadata([string]$versionedPath) {
-  $meta = [ordered]@{
-    schema_version = "1.0"
-    version = $ExpectedVersion
-    gitCommitSha = $sourceHead
-    sourceRepo = $SourceRepo
-    activatedAt = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-    pointer = "current"
-    target = $versionedPath
-  }
-  $meta | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $versionedPath ".superpowers-active.json") -Encoding utf8
-}
-
-function Set-CurrentPointer([string]$cacheBase, [string]$versionedPath) {
-  $current = Join-Path $cacheBase "current"
-  if (Test-Path -LiteralPath $current) {
-    $item = Get-Item -LiteralPath $current -Force
-    # Fail-soft on a DANGLING junction: if the recorded target no longer exists (it was
-    # quarantined/removed), resolve to "" so it won't match and we fall through to rebuild
-    # below. -ErrorAction SilentlyContinue is scoped to THIS resolve only — a non-link
-    # `current` still throws at the explicit guard below, so real failures aren't masked.
-    $target = ""
-    if ($item.LinkType -and $item.Target) {
-      $resolved = Resolve-Path -LiteralPath $item.Target -ErrorAction SilentlyContinue
-      if ($resolved) { $target = $resolved.Path }
-    }
-    if ($target -ne "" -and $target -eq (Resolve-Path -LiteralPath $versionedPath).Path) {
-      Write-ActiveMetadata $versionedPath
-      New-Item -ItemType File -Force -Path (Join-Path $current ".in_use") | Out-Null
-      return $current
-    }
-    if (-not $item.LinkType) {
-      throw "current path exists but is not a link/junction: $current"
-    }
-    [System.IO.Directory]::Delete($current, $false)
-  }
-  New-Item -ItemType Junction -Path $current -Target $versionedPath | Out-Null
-  Write-ActiveMetadata $versionedPath
-  New-Item -ItemType File -Force -Path (Join-Path $current ".in_use") | Out-Null
-  return $current
-}
-
-# Move stale fork caches (version != expected) + official Superpowers caches to quarantine.
-function Quarantine-Superpowers([string]$homeDir) {
-  $qroot = Join-Path $homeDir "plugins\.quarantine-superpowers-$ts"
-  $cacheRoot = Join-Path $homeDir "plugins\cache"
-  $forkBase = Join-Path $cacheRoot "superpowers-dev\superpowers"
-  if (Test-Path -LiteralPath $forkBase) {
-    Get-ChildItem -LiteralPath $forkBase -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne $ExpectedVersion -and $_.Name -ne "current" } | ForEach-Object {
-      New-Item -ItemType Directory -Force -Path $qroot | Out-Null
-      $d = Join-Path $qroot ("fork-" + $_.Name)
-      Move-Item -LiteralPath $_.FullName -Destination $d -Force
-      $script:result.quarantine_paths += $d
-      Log "quarantined stale fork cache -> $d"
-    }
-  }
-  $official = Join-Path $cacheRoot "claude-plugins-official\superpowers"
-  if (Test-Path -LiteralPath $official) {
-    New-Item -ItemType Directory -Force -Path $qroot | Out-Null
-    $d = Join-Path $qroot "official-superpowers"
-    Move-Item -LiteralPath $official -Destination $d -Force
-    $script:result.quarantine_paths += $d
-    Log "quarantined OFFICIAL Superpowers cache -> $d (official marketplace registration left intact)"
-  }
-}
-
-# Surgically repin Claude installed_plugins.json (py -3 = reliable JSON; preserves other plugins).
-function Repin-ClaudeManifest([string]$homeDir, [string]$activePath) {
-  $ipj = Join-Path $homeDir "plugins\installed_plugins.json"
-  if (-not (Test-Path -LiteralPath $ipj)) {
-    $seed = '{ "version": 2, "plugins": {} }'
-    New-Item -ItemType Directory -Force -Path (Split-Path $ipj) | Out-Null
-    Set-Content -LiteralPath $ipj -Value $seed -Encoding utf8
-  }
-  $bak = "$ipj.bak-$ts"
-  Copy-Item -LiteralPath $ipj -Destination $bak -Force
-  $script:result.backup_paths += $bak
-  $py = @'
-import json, sys, time
-ipj, active, version, sha = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
-d = json.load(open(ipj, encoding="utf-8-sig"))   # tolerate a UTF-8 BOM if present
-plugins = d.setdefault("plugins", {})
-plugins.pop("superpowers@claude-plugins-official", None)   # disable official; keep other plugins
-existing = plugins.get("superpowers@superpowers-dev") or [{}]
-e = existing[0] if isinstance(existing, list) and existing else {}
-e.setdefault("scope", "user")
-e.setdefault("installedAt", time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime()))
-e["installPath"] = active
-e["version"] = version
-e["gitCommitSha"] = sha
-e["lastUpdated"] = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
-plugins["superpowers@superpowers-dev"] = [e]
-json.dump(d, open(ipj, "w", encoding="utf-8"), indent=1)
-print("repinned", version)
-'@
-  $tmp = Join-Path $env:TEMP "pin-ipj-$ts.py"
-  $temporaryPaths.Add($tmp) | Out-Null
-  Set-Content -LiteralPath $tmp -Value $py -Encoding utf8
-  & py -3 $tmp $ipj $activePath $ExpectedVersion $sourceHead | Out-Null
-  $rc = $LASTEXITCODE
-  Remove-Item -LiteralPath $tmp -Force
-  $temporaryPaths.Remove($tmp) | Out-Null
-  if ($rc -ne 0) { throw "repin installed_plugins.json (py) failed with exit $rc" }
-  Log "repinned Claude installed_plugins.json -> $ExpectedVersion ($sourceHead)"
-}
-
-function Repin-ClaudeSkillRegistry([string]$homeDir, [string]$activePath) {
-  $registry = Join-Path $homeDir "skills\registry.yaml"
-  if (-not (Test-Path -LiteralPath $registry)) { return }
-
-  $bak = "$registry.bak-$ts"
-  Copy-Item -LiteralPath $registry -Destination $bak -Force
-  $script:result.backup_paths += $bak
-
+function New-ClaudeRegistryStage([string]$homePath, [string]$destination, [string]$activePath) {
+  $registry = Join-Path $homePath "skills\registry.yaml"
+  if (-not (Test-Path -LiteralPath $registry -PathType Leaf)) { return $false }
   $content = Get-Content -Raw -LiteralPath $registry -Encoding utf8
-  $escapedHome = [regex]::Escape($homeDir)
+  $escapedHome = [regex]::Escape($homePath)
   $pattern = "${escapedHome}\\plugins\\cache\\superpowers-dev\\superpowers\\[^\\`r`n]+?\\skills\\"
   $replacement = $activePath + "\skills\"
-  $updated = [regex]::Replace($content, $pattern, $replacement)
-  Set-Content -LiteralPath $registry -Value $updated -Encoding utf8
-  Log "repinned Claude skills\registry.yaml entries -> superpowers-dev\superpowers\current"
+  Write-SPDurableText $destination ([regex]::Replace($content, $pattern, $replacement))
+  return $true
 }
 
-$transactionRoot = Join-Path $env:TEMP ("pin-superpowers-transaction-" + $ts)
-New-Item -ItemType Directory -Force -Path $transactionRoot | Out-Null
-try {
-  $claudeSnapshot = Capture-HomeState $ClaudeHome "claude" $true $transactionRoot
-  $codexSnapshot = Capture-HomeState $CodexHome "codex" $false $transactionRoot
-} catch {
-  Remove-PathNoFollow $transactionRoot
-  throw
+function New-Record(
+  [string]$name,
+  [string]$homePath,
+  [string]$target,
+  [string]$staged,
+  [string]$assetRoot
+) {
+  $backup = Join-Path $assetRoot ("backup-" + $name)
+  $replacement = if ($staged -and $null -ne (Get-SPItem $staged)) { Get-SPTreeFingerprint $staged } else { Get-SPStringSha256 "ABSENT" }
+  return [pscustomobject][ordered]@{
+    name = $name
+    home = $homePath
+    target = $target
+    staged = $staged
+    asset_root = $assetRoot
+    backup = $backup
+    preimage_fingerprint = Get-SPTreeFingerprint $target
+    replacement_fingerprint = $replacement
+    phase = "prepared"
+  }
+}
+
+function Deploy-Record($journal, $record, [string[]]$journalPaths, [bool]$isPointerRemovalSeam) {
+  if ((Get-SPTreeFingerprint ([string]$record.target)) -ne [string]$record.preimage_fingerprint) {
+    throw "preimage CAS rejected concurrent change: $($record.target)"
+  }
+  Assert-SPNoReparseAncestors ([string]$record.target) "deployment target"
+  $record.phase = "removing"
+  Write-TransactionJournal $journal $journalPaths
+  if ($null -ne (Get-SPItem ([string]$record.target))) {
+    Move-Checked ([string]$record.target) ([string]$record.backup) ([string]$record.home)
+  }
+  $record.phase = "removed"
+  Write-TransactionJournal $journal $journalPaths
+  if ($isPointerRemovalSeam) { Invoke-HardKill "AfterPointerRemoval" }
+  if ([string]$record.staged -and $null -ne (Get-SPItem ([string]$record.staged))) {
+    Move-Checked ([string]$record.staged) ([string]$record.target) ([string]$record.home)
+  }
+  if ((Get-SPTreeFingerprint ([string]$record.target)) -ne [string]$record.replacement_fingerprint) {
+    throw "deployment replacement fingerprint mismatch: $($record.target)"
+  }
+  $record.phase = "installed"
+  Write-TransactionJournal $journal $journalPaths
+}
+
+function Assert-InstalledState([string]$claude, [string]$codex, $identity) {
+  $claudeBase = Join-Path $claude "plugins\cache\superpowers-dev\superpowers"
+  $codexBase = Join-Path $codex "plugins\cache\superpowers-dev\superpowers"
+  $claudeCurrent = Join-Path $claudeBase "current"
+  $codexCurrent = Join-Path $codexBase "current"
+  $claudeVersioned = Join-Path $claudeBase $identity.Version
+  $codexVersioned = Join-Path $codexBase $identity.Version
+  Assert-SPPlainTree $claudeBase "Claude installed cache"
+  Assert-SPPlainTree $codexBase "Codex installed cache"
+  $claudeInfo = Get-SPCheckoutInfo $claudeCurrent $identity.Commit $identity.PackageDigest $identity.Version $true
+  $codexInfo = Get-SPCheckoutInfo $codexCurrent $identity.Commit $identity.PackageDigest $identity.Version $true
+  Get-SPCheckoutInfo $claudeVersioned $identity.Commit $identity.PackageDigest $identity.Version $false | Out-Null
+  Get-SPCheckoutInfo $codexVersioned $identity.Commit $identity.PackageDigest $identity.Version $false | Out-Null
+  foreach ($current in @($claudeCurrent, $codexCurrent)) {
+    $meta = Get-Content -Raw -LiteralPath (Join-Path $current ".superpowers-active.json") -Encoding utf8 | ConvertFrom-Json
+    if (-not (Get-SPCanonicalPath ([string]$meta.target)).Equals((Get-SPCanonicalPath $current), [StringComparison]::OrdinalIgnoreCase)) {
+      throw "active metadata target mismatch: $current"
+    }
+  }
+  $installedPath = Join-Path $claude "plugins\installed_plugins.json"
+  Assert-SPSingleLinkFile $installedPath "Claude installed manifest"
+  $installed = Get-Content -Raw -LiteralPath $installedPath -Encoding utf8 | ConvertFrom-Json
+  $names = @($installed.plugins.PSObject.Properties.Name)
+  if ($names -contains "superpowers@claude-plugins-official" -or $names -notcontains "superpowers@superpowers-dev") {
+    throw "Claude installed manifest plugin identity mismatch"
+  }
+  $entries = @($installed.plugins."superpowers@superpowers-dev")
+  if ($entries.Count -ne 1) { throw "Claude installed manifest must contain exactly one fork entry" }
+  $entry = $entries[0]
+  if (-not (Get-SPCanonicalPath ([string]$entry.installPath)).Equals((Get-SPCanonicalPath $claudeCurrent), [StringComparison]::OrdinalIgnoreCase) -or
+      $entry.version -ne $identity.Version -or $entry.gitCommitSha -ne $identity.Commit -or
+      $entry.gitTreeSha -ne $identity.Tree -or $entry.packageDigest -ne $identity.PackageDigest) {
+    throw "Claude installed manifest pin mismatch"
+  }
+  foreach ($official in @(
+    (Join-Path $claude "plugins\cache\claude-plugins-official\superpowers"),
+    (Join-Path $codex "plugins\cache\claude-plugins-official\superpowers")
+  )) {
+    if ($null -ne (Get-SPItem $official)) { throw "official Superpowers cache remains active: $official" }
+  }
+  return [pscustomobject]@{ Claude = $claudeInfo; Codex = $codexInfo }
+}
+
+function Get-VerifiedArchivePath($journal, $record) {
+  if ([string]$record.name -match "manifest|registry") {
+    return ([string]$record.target) + ".bak-" + [string]$journal.transaction_id
+  }
+  $qroot = Join-Path ([string]$record.home) ("plugins\.quarantine-superpowers-" + [string]$journal.transaction_id)
+  return Join-Path $qroot ([string]$record.name)
+}
+
+function Finalize-VerifiedTransaction($journal, [string[]]$journalPaths, [string[]]$controlPaths, $result) {
+  $absentFingerprint = Get-SPStringSha256 "ABSENT"
+  foreach ($record in @($journal.records)) {
+    $backup = Get-SPCanonicalPath ([string]$record.backup)
+    $archive = Get-SPCanonicalPath (Get-VerifiedArchivePath $journal $record)
+    Assert-SPContained ([string]$record.home) $archive "verified archive"
+    $backupExists = $null -ne (Get-SPItem $backup)
+    $archiveExists = $null -ne (Get-SPItem $archive)
+    if ([string]$record.preimage_fingerprint -eq $absentFingerprint) {
+      if ($backupExists -or $archiveExists) { throw "verified finalization found archive for absent preimage: $($record.name)" }
+    } else {
+      if ($backupExists -and $archiveExists) { throw "verified finalization found duplicate preimage: $($record.name)" }
+      if ($backupExists) {
+        if ((Get-SPTreeFingerprint $backup) -ne [string]$record.preimage_fingerprint) {
+          throw "verified finalization backup fingerprint mismatch: $($record.name)"
+        }
+        Move-Checked $backup $archive ([string]$record.home)
+        Invoke-HardKill "DuringFinalize"
+        $archiveExists = $true
+      }
+      if (-not $archiveExists) { throw "verified finalization lost preimage: $($record.name)" }
+      if ((Get-SPTreeFingerprint $archive) -ne [string]$record.preimage_fingerprint) {
+        throw "verified finalization archive fingerprint mismatch: $($record.name)"
+      }
+      if ($null -ne $result) {
+        if ([string]$record.name -match "manifest|registry") { $result.backup_paths += $archive }
+        else { $result.quarantine_paths += $archive }
+      }
+    }
+    $record.phase = "finalized"
+    Write-TransactionJournal $journal $journalPaths
+  }
+  Remove-AssetRoots $journal $controlPaths
+  Remove-TransactionJournals $journalPaths
+}
+
+$identity = Get-SPSourceIdentity $SourceRepo $ExpectedVersion $ExpectedSourceCommit $ExpectedPackageDigest
+$homes = Assert-SPDistinctHomes $ClaudeHome $CodexHome
+$ClaudeHome = $homes.Claude
+$CodexHome = $homes.Codex
+Assert-ScopedExistingState $ClaudeHome $true
+Assert-ScopedExistingState $CodexHome $false
+
+$controlPaths = Get-ControlPaths $ClaudeHome $CodexHome
+$journalPaths = Get-JournalPaths $controlPaths
+$lockStreams = $null
+$journal = $null
+$transactionVerified = $false
+$result = [ordered]@{
+  version = $identity.Version
+  source_head = $identity.Commit
+  source_tree = $identity.Tree
+  source_binding_scope = "entire-tracked-git-tree-including-executable-surfaces"
+  package_digest = $identity.PackageDigest
+  claude_active_path = Join-Path $ClaudeHome "plugins\cache\superpowers-dev\superpowers\current"
+  codex_cache_path = Join-Path $CodexHome "plugins\cache\superpowers-dev\superpowers\current"
+  claude_active_content = @()
+  codex_active_content = @()
+  complete_package_paths = @($identity.PackagePaths)
+  quarantine_paths = @()
+  backup_paths = @()
+  residual_scope = @("ACLs", "alternate-data-streams", "hardlink-topology", "timestamps")
 }
 
 try {
-  # ---- Claude ----
-  Log "pinning Claude home: $ClaudeHome"
-  $claudeBase = Join-Path $ClaudeHome "plugins\cache\superpowers-dev\superpowers"
-  $claudeVersioned = Ensure-ForkCache $claudeBase
-  $claudeActive = Set-CurrentPointer $claudeBase $claudeVersioned
-  $result.claude_active_path = $claudeActive
-  Quarantine-Superpowers $ClaudeHome
-  Repin-ClaudeManifest $ClaudeHome $claudeActive
-  Repin-ClaudeSkillRegistry $ClaudeHome $claudeActive
+  $lockStreams = Open-TransactionLocks $controlPaths
+  if ($HoldLockMilliseconds -gt 0) { Start-Sleep -Milliseconds $HoldLockMilliseconds }
+  $pending = Read-PendingJournal $journalPaths $ClaudeHome $CodexHome $controlPaths
+  if ($null -ne $pending) { Recover-Transaction $pending $journalPaths $controlPaths }
+
+  foreach ($control in $controlPaths) {
+    foreach ($orphan in @(Get-ChildItem -LiteralPath $control -Directory -Force -ErrorAction SilentlyContinue | Where-Object { $_.Name -match "^(assets-|a-)" })) {
+      Assert-SPPlainTree $orphan.FullName "orphan transaction asset"
+      Remove-SPTree $orphan.FullName $control
+    }
+  }
+
+  $runId = [DateTime]::UtcNow.ToString("yyyyMMddTHHmmssfffZ") + "-" + [guid]::NewGuid().ToString("N").Substring(0, 8)
+  $assetLeaf = "a-" + [guid]::NewGuid().ToString("N").Substring(0, 8)
+  $claudeAssets = Join-Path $controlPaths[0] $assetLeaf
+  $codexAssets = Join-Path $controlPaths[1] $assetLeaf
+  New-Item -ItemType Directory -Force -Path $claudeAssets, $codexAssets | Out-Null
+
+  $claudeBaseTarget = Join-Path $ClaudeHome "plugins\cache\superpowers-dev\superpowers"
+  $codexBaseTarget = Join-Path $CodexHome "plugins\cache\superpowers-dev\superpowers"
+  $claudeBaseStage = Join-Path $claudeAssets "s"
+  $codexBaseStage = Join-Path $codexAssets "s"
+  $stages = @($claudeBaseStage, $codexBaseStage)
+  $activeTargets = @($result.claude_active_path, $result.codex_cache_path)
+  for ($stageIndex = 0; $stageIndex -lt $stages.Count; $stageIndex++) {
+    $stage = $stages[$stageIndex]
+    New-Item -ItemType Directory -Force -Path $stage | Out-Null
+    New-SPExactCheckout $identity.SourceRepo (Join-Path $stage $identity.Version) $identity.Commit $identity.PackageDigest $identity.Version | Out-Null
+    $current = Join-Path $stage "current"
+    New-SPExactCheckout $identity.SourceRepo $current $identity.Commit $identity.PackageDigest $identity.Version | Out-Null
+    Set-SPActiveMetadata $current $identity.Version $identity.Commit $identity.Tree $identity.PackageDigest $identity.SourceRepo $activeTargets[$stageIndex]
+    Get-SPCheckoutInfo $current $identity.Commit $identity.PackageDigest $identity.Version $true $activeTargets[$stageIndex] | Out-Null
+  }
+
+  $manifestStage = Join-Path $claudeAssets "stage-installed_plugins.json"
+  New-ClaudeManifestStage $ClaudeHome $manifestStage $result.claude_active_path $identity
+  $registryStage = Join-Path $claudeAssets "stage-registry.yaml"
+  $hasRegistry = New-ClaudeRegistryStage $ClaudeHome $registryStage $result.claude_active_path
+
+  $records = New-Object System.Collections.Generic.List[object]
+  $records.Add((New-Record "claude-fork-base" $ClaudeHome $claudeBaseTarget $claudeBaseStage $claudeAssets)) | Out-Null
+  $records.Add((New-Record "codex-fork-base" $CodexHome $codexBaseTarget $codexBaseStage $codexAssets)) | Out-Null
+  $records.Add((New-Record "claude-official" $ClaudeHome (Join-Path $ClaudeHome "plugins\cache\claude-plugins-official\superpowers") "" $claudeAssets)) | Out-Null
+  $records.Add((New-Record "codex-official" $CodexHome (Join-Path $CodexHome "plugins\cache\claude-plugins-official\superpowers") "" $codexAssets)) | Out-Null
+  $records.Add((New-Record "claude-manifest" $ClaudeHome (Join-Path $ClaudeHome "plugins\installed_plugins.json") $manifestStage $claudeAssets)) | Out-Null
+  if ($hasRegistry) {
+    $records.Add((New-Record "claude-registry" $ClaudeHome (Join-Path $ClaudeHome "skills\registry.yaml") $registryStage $claudeAssets)) | Out-Null
+  }
+
+  $journal = [pscustomobject][ordered]@{
+    schema_version = "2.0"
+    transaction_id = $runId
+    sequence = [int64]0
+    state = "prepared"
+    updated_at = [DateTime]::UtcNow.ToString("o")
+    claude_home = $ClaudeHome
+    codex_home = $CodexHome
+    source_commit = $identity.Commit
+    source_tree = $identity.Tree
+    package_digest = $identity.PackageDigest
+    asset_roots = @($claudeAssets, $codexAssets)
+    records = $records.ToArray()
+  }
+  Write-TransactionJournal $journal $journalPaths
+  $journal.state = "deploying"
+  Write-TransactionJournal $journal $journalPaths
+
+  Deploy-Record $journal $records[0] $journalPaths $true
   Invoke-InjectedFailure "AfterClaude"
-
-  # ---- Codex ----
-  Log "pinning Codex home: $CodexHome"
-  $codexBase = Join-Path $CodexHome "plugins\cache\superpowers-dev\superpowers"
-  $codexVersioned = Ensure-ForkCache $codexBase
-  $codexActive = Set-CurrentPointer $codexBase $codexVersioned
-  $result.codex_cache_path = $codexActive
-  Quarantine-Superpowers $CodexHome
+  Invoke-HardKill "AfterClaudeBeforeCodex"
+  Deploy-Record $journal $records[1] $journalPaths $false
   Invoke-InjectedFailure "AfterCodex"
+  for ($recordIndex = 2; $recordIndex -lt $records.Count; $recordIndex++) {
+    Deploy-Record $journal $records[$recordIndex] $journalPaths $false
+  }
 
-  # ---- verify ----
   Invoke-InjectedFailure "BeforeVerify"
-  if (-not $SkipVerify) {
-    & (Join-Path $PSScriptRoot "verify-local-fork-install.ps1") -ClaudeHome $ClaudeHome -CodexHome $CodexHome -SourceRepo $SourceRepo -ExpectedVersion $ExpectedVersion
-    if ($LASTEXITCODE -ne 0) { throw "verify-local-fork-install.ps1 failed after pin" }
-  }
-
-  Remove-PathNoFollow $transactionRoot
+  $installedInfo = Assert-InstalledState $ClaudeHome $CodexHome $identity
+  $verifyOutput = @(& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "verify-local-fork-install.ps1") `
+    -ClaudeHome $ClaudeHome -CodexHome $CodexHome -ExpectedVersion $identity.Version `
+    -ExpectedSourceCommit $identity.Commit -ExpectedPackageDigest $identity.PackageDigest 2>&1)
+  if ($LASTEXITCODE -ne 0) { throw "verify-local-fork-install.ps1 failed after pin: $($verifyOutput -join ' ')" }
+  $journal.state = "verified"
+  Write-TransactionJournal $journal $journalPaths
+  Invoke-HardKill "AfterVerifiedBeforeFinalize"
+  $transactionVerified = $true
+  $result.claude_active_content = @($installedInfo.Claude.Content)
+  $result.codex_active_content = @($installedInfo.Codex.Content)
+  Finalize-VerifiedTransaction $journal $journalPaths $controlPaths $result
 } catch {
-  $originalError = $_.Exception
-  $rollbackErrors = New-Object System.Collections.Generic.List[string]
-  foreach ($artifact in @($result.backup_paths)) {
-    try { Remove-PathNoFollow $artifact } catch { $rollbackErrors.Add($_.Exception.Message) | Out-Null }
+  $original = $_.Exception
+  if ($null -ne $journal -and -not $transactionVerified) {
+    try { Recover-Transaction $journal $journalPaths $controlPaths } catch {
+      throw "Pin failed: $($original.Message); durable rollback failed: $($_.Exception.Message)"
+    }
   }
-  foreach ($homeDir in @($ClaudeHome, $CodexHome)) {
-    $qroot = Join-Path $homeDir "plugins\.quarantine-superpowers-$ts"
-    try { Remove-PathNoFollow $qroot } catch { $rollbackErrors.Add($_.Exception.Message) | Out-Null }
-  }
-  try { Restore-HomeState $codexSnapshot } catch { $rollbackErrors.Add("Codex rollback: " + $_.Exception.Message) | Out-Null }
-  try { Restore-HomeState $claudeSnapshot } catch { $rollbackErrors.Add("Claude rollback: " + $_.Exception.Message) | Out-Null }
-  foreach ($temporaryPath in @($temporaryPaths)) {
-    try { Remove-PathNoFollow $temporaryPath } catch { $rollbackErrors.Add($_.Exception.Message) | Out-Null }
-  }
-  try { Remove-PathNoFollow $transactionRoot } catch { $rollbackErrors.Add($_.Exception.Message) | Out-Null }
-  if ($rollbackErrors.Count -gt 0) {
-    throw "Pin failed: $($originalError.Message); rollback failed: $($rollbackErrors -join '; ')"
-  }
-  throw $originalError
+  throw
+} finally {
+  if ($null -ne $lockStreams) { Close-TransactionLocks $lockStreams }
 }
 
-$result | ConvertTo-Json -Depth 6
+$result | ConvertTo-Json -Depth 20
