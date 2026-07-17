@@ -48,6 +48,53 @@ function Test-SPForkBaseRecordName([string]$name) {
   return @("claude-fork-base", "codex-fork-base") -contains $name
 }
 
+function Assert-SPLegacyGitTree([string]$path, [string]$label) {
+  $rootItem = Get-SPItem $path
+  if ($null -eq $rootItem) { return }
+  $root = Get-SPCanonicalPath $path
+  $gitObjects = Get-SPCanonicalPath (Join-Path $root ".git\objects")
+  $stack = New-Object System.Collections.Generic.Stack[string]
+  $stack.Push($root)
+  while ($stack.Count -gt 0) {
+    $current = $stack.Pop()
+    $item = Get-SPItem $current
+    if ($null -eq $item) { throw "$label changed during validation: $current" }
+    if (Test-SPReparseItem $item) { throw "$label contains reparse point: $current" }
+    if (-not $item.PSIsContainer -and $item.LinkType -eq "HardLink" -and
+        -not (Test-SPPathContained $gitObjects $current $false)) {
+      throw "$label contains multi-hardlink file outside legacy Git objects: $current"
+    }
+    if ($item.PSIsContainer) {
+      foreach ($child in @(Get-ChildItem -LiteralPath $current -Force)) {
+        $stack.Push($child.FullName)
+      }
+    }
+  }
+}
+
+function Get-SPLegacyGitTreeFingerprint([string]$path, [string]$label) {
+  Assert-SPLegacyGitTree $path $label
+  $root = Get-SPCanonicalPath $path
+  $records = New-Object System.Collections.Generic.List[string]
+  $stack = New-Object System.Collections.Generic.Stack[string]
+  $stack.Push($root)
+  while ($stack.Count -gt 0) {
+    $current = $stack.Pop()
+    $item = Get-SPItem $current
+    $relative = $current.Substring($root.Length).TrimStart("\").Replace("\", "/")
+    if ($item.PSIsContainer) {
+      $records.Add("D|$relative") | Out-Null
+      foreach ($child in @(Get-ChildItem -LiteralPath $current -Force | Sort-Object Name -Descending)) {
+        $stack.Push($child.FullName)
+      }
+    } else {
+      $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $current).Hash.ToLowerInvariant()
+      $records.Add("F|$relative|$($item.Length)|$hash") | Out-Null
+    }
+  }
+  return Get-SPStringSha256 (($records | Sort-Object) -join [Environment]::NewLine)
+}
+
 function Assert-SPManagedForkTree(
   [string]$forkBase,
   [string]$expectedLegacyTarget = "",
@@ -106,18 +153,28 @@ function Assert-SPManagedForkTree(
         throw "managed cache current Junction does not resolve to its declared target: $current"
       }
     }
-  } elseif (-not [string]::IsNullOrWhiteSpace($expectedLegacyTarget) -and -not $allowMissingLegacy) {
-    throw "managed cache lost its legacy current Junction: $current"
-  } elseif (-not [string]::IsNullOrWhiteSpace($expectedLegacyTarget) -and $null -ne $currentItem) {
-    throw "managed cache replaced its legacy current Junction with an unexpected item: $current"
+  } elseif (-not [string]::IsNullOrWhiteSpace($expectedLegacyTarget)) {
+    if ($null -ne $currentItem) {
+      throw "managed cache replaced its legacy current Junction with an unexpected item: $current"
+    }
+    if (-not $allowMissingLegacy) {
+      throw "managed cache lost its legacy current Junction: $current"
+    }
+    $legacyTarget = Get-SPCanonicalPath $expectedLegacyTarget
   }
 
+  $legacyTree = if ([string]::IsNullOrWhiteSpace($legacyTarget)) { "" } else { Join-Path $base (Split-Path -Leaf $legacyTarget) }
   foreach ($child in @(Get-ChildItem -LiteralPath $base -Force)) {
     if (-not [string]::IsNullOrWhiteSpace($legacyTarget) -and
         (Get-SPCanonicalPath $child.FullName).Equals($current, [StringComparison]::OrdinalIgnoreCase)) {
       continue
     }
-    Assert-SPPlainTree $child.FullName "managed cache"
+    if (-not [string]::IsNullOrWhiteSpace($legacyTree) -and
+        (Get-SPCanonicalPath $child.FullName).Equals((Get-SPCanonicalPath $legacyTree), [StringComparison]::OrdinalIgnoreCase)) {
+      Assert-SPLegacyGitTree $child.FullName "managed cache"
+    } else {
+      Assert-SPPlainTree $child.FullName "managed cache"
+    }
   }
   return $legacyTarget
 }
@@ -132,6 +189,7 @@ function Get-SPManagedForkTreeFingerprint(
   if ($null -eq $item) { return Get-SPStringSha256 "ABSENT" }
   $legacyTarget = Assert-SPManagedForkTree $forkBase $expectedLegacyTarget $allowDanglingLegacy $allowMissingLegacy
   $current = Get-SPCanonicalPath (Join-Path $forkBase "current")
+  $legacyTree = Get-SPCanonicalPath (Join-Path $forkBase (Split-Path -Leaf $legacyTarget))
   $records = New-Object System.Collections.Generic.List[string]
   $records.Add("D|") | Out-Null
   foreach ($child in @(Get-ChildItem -LiteralPath $forkBase -Force | Sort-Object Name)) {
@@ -139,13 +197,57 @@ function Get-SPManagedForkTreeFingerprint(
         (Get-SPCanonicalPath $child.FullName).Equals($current, [StringComparison]::OrdinalIgnoreCase)) {
       continue
     }
-    $records.Add("C|$($child.Name)|$(Get-SPTreeFingerprint $child.FullName)") | Out-Null
+    $fingerprint = if ((Get-SPCanonicalPath $child.FullName).Equals($legacyTree, [StringComparison]::OrdinalIgnoreCase)) {
+      Get-SPLegacyGitTreeFingerprint $child.FullName "managed cache"
+    } else {
+      Get-SPTreeFingerprint $child.FullName
+    }
+    $records.Add("C|$($child.Name)|$fingerprint") | Out-Null
   }
   return Get-SPStringSha256 ($records -join [Environment]::NewLine)
 }
 
+function Copy-SPManagedForkSnapshot(
+  [string]$source,
+  [string]$destination,
+  [string]$legacyTarget,
+  [string]$expectedFingerprint
+) {
+  Assert-SPManagedForkTree $source $legacyTarget $false $false | Out-Null
+  if ($null -ne (Get-SPItem $destination)) { throw "legacy snapshot destination already exists: $destination" }
+  $sourceRoot = Get-SPCanonicalPath $source
+  $current = Get-SPCanonicalPath (Join-Path $sourceRoot "current")
+
+  function Copy-SnapshotNode([string]$sourceNode, [string]$destinationNode) {
+    $item = Get-SPItem $sourceNode
+    if ($null -eq $item) { throw "legacy snapshot source changed during copy: $sourceNode" }
+    if (Test-SPReparseItem $item) { throw "legacy snapshot source contains unexpected reparse point: $sourceNode" }
+    if ($item.PSIsContainer) {
+      New-Item -ItemType Directory -Path $destinationNode | Out-Null
+      foreach ($child in @(Get-ChildItem -LiteralPath $sourceNode -Force | Sort-Object Name)) {
+        if ((Get-SPCanonicalPath $child.FullName).Equals($current, [StringComparison]::OrdinalIgnoreCase)) { continue }
+        Copy-SnapshotNode $child.FullName (Join-Path $destinationNode $child.Name)
+      }
+    } else {
+      [System.IO.File]::Copy($sourceNode, $destinationNode, $false)
+    }
+  }
+
+  Copy-SnapshotNode $sourceRoot $destination
+  Assert-SPPlainTree $destination "detached legacy snapshot"
+  $sourceAfter = Get-SPManagedForkTreeFingerprint $source $legacyTarget $false $false
+  $snapshotFingerprint = Get-SPManagedForkTreeFingerprint $destination $legacyTarget $true $true
+  if ($sourceAfter -ne $expectedFingerprint -or $snapshotFingerprint -ne $expectedFingerprint) {
+    throw "detached legacy snapshot digest mismatch"
+  }
+}
+
 function Get-SPRecordLegacyCurrentTarget($record) {
   return [string]$record.legacy_current_target
+}
+
+function Get-SPRecordLegacySnapshot($record) {
+  return [string]$record.legacy_snapshot
 }
 
 function Get-SPRecordFingerprint(
@@ -193,6 +295,41 @@ function Remove-SPVerifiedLegacyCurrent($record, [string]$forkBase) {
     [System.IO.Directory]::Delete($current, $false)
   }
   Assert-SPPlainTree $forkBase "verified legacy archive"
+}
+
+function Remove-SPVerifiedLegacySource($record, [string]$forkBase) {
+  $legacyTarget = Get-SPRecordLegacyCurrentTarget $record
+  $assetRoot = Get-SPCanonicalPath ([string]$record.asset_root)
+  Assert-SPContained $assetRoot $forkBase "verified legacy source"
+  if ($null -eq (Get-SPItem $forkBase)) { return }
+  Assert-SPManagedForkTree $forkBase $legacyTarget $true $true | Out-Null
+
+  $current = Join-Path $forkBase "current"
+  $currentItem = Get-SPItem $current
+  if ($null -ne $currentItem) {
+    if ([string]$currentItem.LinkType -cne "Junction") {
+      throw "verified legacy current is no longer a Junction: $current"
+    }
+    [System.IO.Directory]::Delete($current, $false)
+  }
+
+  $legacyTree = Get-SPCanonicalPath (Join-Path $forkBase (Split-Path -Leaf $legacyTarget))
+  $gitObjects = Get-SPCanonicalPath (Join-Path $legacyTree ".git\objects")
+  function Remove-LegacyNode([string]$node) {
+    $item = Get-SPItem $node
+    if ($null -eq $item) { return }
+    if (Test-SPReparseItem $item) { throw "verified legacy source contains reparse point: $node" }
+    if ($item.PSIsContainer) {
+      foreach ($child in @(Get-ChildItem -LiteralPath $node -Force)) { Remove-LegacyNode $child.FullName }
+      [System.IO.Directory]::Delete($node, $false)
+    } else {
+      if ($item.LinkType -eq "HardLink" -and -not (Test-SPPathContained $gitObjects $node $false)) {
+        throw "verified legacy source contains unexpected hardlink: $node"
+      }
+      Remove-Item -LiteralPath $node -Force
+    }
+  }
+  Remove-LegacyNode $forkBase
 }
 
 function Get-ControlPaths([string]$claude, [string]$codex) {
@@ -347,6 +484,7 @@ function Assert-TransactionJournalShape($journal, [string]$claude, [string]$code
       throw "durable journal record fingerprint is invalid"
     }
     $legacyTarget = [string]$record.legacy_current_target
+    $legacySnapshot = [string]$record.legacy_snapshot
     if (Test-SPForkBaseRecordName $name) {
       if (-not [string]::IsNullOrWhiteSpace($legacyTarget)) {
         $legacyTarget = Get-SPCanonicalPath $legacyTarget
@@ -356,10 +494,14 @@ function Assert-TransactionJournalShape($journal, [string]$claude, [string]$code
           throw "durable journal legacy current target is not a direct contained sibling"
         }
       }
-    } elseif (-not [string]::IsNullOrWhiteSpace($legacyTarget)) {
-      throw "durable journal non-fork record declares a legacy current target"
+      if (-not [string]::IsNullOrWhiteSpace($legacySnapshot)) {
+        if ([string]::IsNullOrWhiteSpace($legacyTarget)) { throw "durable journal legacy snapshot has no current target" }
+        Assert-SPExactPath $legacySnapshot (Join-Path $asset ("snapshot-" + $name)) "legacy snapshot"
+      }
+    } elseif (-not [string]::IsNullOrWhiteSpace($legacyTarget) -or -not [string]::IsNullOrWhiteSpace($legacySnapshot)) {
+      throw "durable journal non-fork record declares legacy migration state"
     }
-    if (@("prepared", "removing", "removed", "installed", "rolled-back", "finalized") -notcontains [string]$record.phase) {
+    if (@("prepared", "removing", "removed", "installed", "snapshot-verified", "rolled-back", "finalized") -notcontains [string]$record.phase) {
       throw "durable journal record phase is invalid"
     }
   }
@@ -435,6 +577,9 @@ function Recover-Transaction($journal, [string[]]$journalPaths, [string[]]$contr
     $targetExists = $null -ne (Get-SPItem $target)
     $backupExists = $null -ne (Get-SPItem $backup)
     if ($backupExists) {
+      if ((Get-SPRecordFingerprint $record $backup $true $false) -ne [string]$record.preimage_fingerprint) {
+        throw "recovery CAS rejected changed backup: $backup"
+      }
       if ($targetExists) {
         $actual = Get-SPTreeFingerprint $target
         if ($actual -ne [string]$record.replacement_fingerprint) {
@@ -525,6 +670,11 @@ function New-Record(
   } else {
     Get-SPManagedForkTreeFingerprint $target $legacyTarget $false $false
   }
+  $legacySnapshot = ""
+  if (-not [string]::IsNullOrWhiteSpace($legacyTarget)) {
+    $legacySnapshot = Join-Path $assetRoot ("snapshot-" + $name)
+    Copy-SPManagedForkSnapshot $target $legacySnapshot $legacyTarget $preimage
+  }
   return [pscustomobject][ordered]@{
     name = $name
     home = $homePath
@@ -535,6 +685,7 @@ function New-Record(
     preimage_fingerprint = $preimage
     replacement_fingerprint = $replacement
     legacy_current_target = $legacyTarget
+    legacy_snapshot = $legacySnapshot
     phase = "prepared"
   }
 }
@@ -621,11 +772,42 @@ function Finalize-VerifiedTransaction($journal, [string[]]$journalPaths, [string
     Assert-SPContained ([string]$record.home) $archive "verified archive"
     $backupExists = $null -ne (Get-SPItem $backup)
     $archiveExists = $null -ne (Get-SPItem $archive)
+    $legacySnapshotValue = Get-SPRecordLegacySnapshot $record
+    $legacySnapshot = if ([string]::IsNullOrWhiteSpace($legacySnapshotValue)) { "" } else { Get-SPCanonicalPath $legacySnapshotValue }
+    $snapshotExists = -not [string]::IsNullOrWhiteSpace($legacySnapshot) -and $null -ne (Get-SPItem $legacySnapshot)
     if ([string]$record.preimage_fingerprint -eq $absentFingerprint) {
-      if ($backupExists -or $archiveExists) { throw "verified finalization found archive for absent preimage: $($record.name)" }
+      if ($backupExists -or $archiveExists -or $snapshotExists) { throw "verified finalization found archive for absent preimage: $($record.name)" }
     } else {
       if ($backupExists -and $archiveExists) { throw "verified finalization found duplicate preimage: $($record.name)" }
-      if ($backupExists) {
+      if (-not [string]::IsNullOrWhiteSpace($legacySnapshot)) {
+        if ($archiveExists -and $snapshotExists) { throw "verified finalization found duplicate detached snapshot: $($record.name)" }
+        if ([string]$record.phase -notin @("snapshot-verified", "finalized")) {
+          if (-not $backupExists -or -not $snapshotExists -or $archiveExists) {
+            throw "verified finalization cannot prove detached legacy snapshot: $($record.name)"
+          }
+          if ((Get-SPRecordFingerprint $record $backup $true $false) -ne [string]$record.preimage_fingerprint) {
+            throw "verified finalization backup fingerprint mismatch: $($record.name)"
+          }
+          Assert-SPPlainTree $legacySnapshot "detached legacy snapshot"
+          if ((Get-SPRecordFingerprint $record $legacySnapshot $true $true) -ne [string]$record.preimage_fingerprint) {
+            throw "verified finalization detached snapshot fingerprint mismatch: $($record.name)"
+          }
+          $record.phase = "snapshot-verified"
+          Write-TransactionJournal $journal $journalPaths
+        }
+        if ($backupExists) {
+          Remove-SPVerifiedLegacySource $record $backup
+          $backupExists = $false
+        }
+        if (-not $archiveExists) {
+          if (-not $snapshotExists) { throw "verified finalization lost detached snapshot: $($record.name)" }
+          Move-Checked $legacySnapshot $archive ([string]$record.home)
+          Invoke-HardKill "DuringFinalize"
+          $archiveExists = $true
+          $snapshotExists = $false
+        }
+        Assert-SPPlainTree $archive "verified detached legacy archive"
+      } elseif ($backupExists) {
         if ((Get-SPRecordFingerprint $record $backup $true $true) -ne [string]$record.preimage_fingerprint) {
           throw "verified finalization backup fingerprint mismatch: $($record.name)"
         }

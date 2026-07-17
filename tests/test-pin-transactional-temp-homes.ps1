@@ -11,6 +11,7 @@ $verify = Join-Path $root "scripts\verify-local-fork-install.ps1"
 $expected = (Get-Content -Raw -LiteralPath (Join-Path $root ".claude-plugin\plugin.json") | ConvertFrom-Json).version
 $approvedDigest = "b070d6682ffd64fc21cd3e507c77be3661cfbe309a49dafd82814f5f676bfdcf"
 $legacyVersion = "6.0.3-vmodel.17"
+$legacyPackName = "pack-d42d000000000000000000000000000000000000.rev"
 $fails = New-Object System.Collections.Generic.List[string]
 
 function Check([bool]$condition, [string]$message) {
@@ -66,7 +67,7 @@ function Resolve-Target([string]$path) {
   return (Resolve-Path -LiteralPath $path).Path
 }
 
-function Seed-OldHome([string]$homePath, [bool]$isClaude) {
+function Seed-OldHome([string]$homePath, [bool]$isClaude, [string]$sharedGitObject) {
   $base = Join-Path $homePath "plugins\cache\superpowers-dev\superpowers"
   $old = Join-Path $base $legacyVersion
   New-Item -ItemType Directory -Force -Path (Join-Path $old "skills\using-superpowers") | Out-Null
@@ -74,6 +75,10 @@ function Seed-OldHome([string]$homePath, [bool]$isClaude) {
   Set-Content -LiteralPath (Join-Path $old "skills\using-superpowers\SKILL.md") -Value "legacy-vmodel.17" -Encoding utf8
   New-Item -ItemType Directory -Force -Path (Join-Path $old ".claude-plugin") | Out-Null
   @{ name = "superpowers"; version = $legacyVersion } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $old ".claude-plugin\plugin.json") -Encoding utf8
+  $packDir = Join-Path $old ".git\objects\pack"
+  New-Item -ItemType Directory -Force -Path $packDir | Out-Null
+  $packFile = Join-Path $packDir $legacyPackName
+  New-Item -ItemType HardLink -Path $packFile -Target $sharedGitObject | Out-Null
   $current = Join-Path $base "current"
   New-Item -ItemType Junction -Path $current -Target $old | Out-Null
   [IO.File]::WriteAllBytes((Join-Path $current "current-sentinel.bin"), [byte[]](9, 8, 7, 6, 255))
@@ -108,7 +113,9 @@ function Seed-OldHome([string]$homePath, [bool]$isClaude) {
   return [ordered]@{
     current = $current
     old = $old
+    pack_file = $packFile
     sentinel_sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $old "old-package.bin")).Hash.ToLowerInvariant()
+    pack_sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $packFile).Hash.ToLowerInvariant()
     current_sentinel_sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $current "current-sentinel.bin")).Hash.ToLowerInvariant()
   }
 }
@@ -166,8 +173,12 @@ New-Item -ItemType Directory -Force -Path $receipts | Out-Null
 try {
   Check ($expected -eq "6.0.3-native.18") "source version is '$expected', expected 6.0.3-native.18"
 
-  $seedClaude = Seed-OldHome $claude $true
-  $seedCodex = Seed-OldHome $codex $false
+  $sharedObject = Join-Path $tmp ("shared-git-objects\" + $legacyPackName)
+  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $sharedObject) | Out-Null
+  [IO.File]::WriteAllBytes($sharedObject, [byte[]](12, 34, 56, 78, 90, 210, 254, 255))
+  $sharedObjectSha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $sharedObject).Hash.ToLowerInvariant()
+  $seedClaude = Seed-OldHome $claude $true $sharedObject
+  $seedCodex = Seed-OldHome $codex $false $sharedObject
   $beforeClaude = Get-StateFingerprint $claude
   $script:sourceRepo = Join-Path $tmp "source"
   & git -c core.autocrlf=false -c core.longpaths=true clone --no-local --no-hardlinks --quiet -- "$root" "$script:sourceRepo"
@@ -192,6 +203,9 @@ try {
   Check ((Get-Item -LiteralPath $seedCodex.current -Force).LinkType -eq "Junction") "Codex legacy current junction identity changed during rollback"
   Check ((Resolve-Target $seedClaude.current) -eq (Resolve-Path -LiteralPath $seedClaude.old).Path) "Claude legacy current target changed during rollback"
   Check ((Resolve-Target $seedCodex.current) -eq (Resolve-Path -LiteralPath $seedCodex.old).Path) "Codex legacy current target changed during rollback"
+  Check ((Get-Item -LiteralPath $seedClaude.pack_file -Force).LinkType -eq "HardLink") "Claude legacy Git object hardlink identity was not restored"
+  Check ((Get-Item -LiteralPath $seedCodex.pack_file -Force).LinkType -eq "HardLink") "Codex legacy Git object hardlink identity was not restored"
+  Check ((Get-FileHash -Algorithm SHA256 -LiteralPath $sharedObject).Hash.ToLowerInvariant() -eq $sharedObjectSha256) "shared Git object changed during rollback"
   Check ((Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $seedClaude.current "current-sentinel.bin")).Hash.ToLowerInvariant() -eq $seedClaude.current_sentinel_sha256) "Claude current preimage bytes were not restored"
   Check ((Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $seedCodex.current "current-sentinel.bin")).Hash.ToLowerInvariant() -eq $seedCodex.current_sentinel_sha256) "Codex current preimage bytes were not restored"
 
@@ -308,6 +322,16 @@ try {
   if ($codexPreserved.Count -eq 1) {
     Check ((Get-FileHash -Algorithm SHA256 -LiteralPath $codexPreserved[0].FullName).Hash.ToLowerInvariant() -eq $seedCodex.sentinel_sha256) "Codex preserved legacy bytes changed"
   }
+
+  $claudePackPreserved = @(Get-ChildItem -LiteralPath $claude -Recurse -File -Filter $legacyPackName | Where-Object { $_.FullName -match "quarantine-superpowers" })
+  $codexPackPreserved = @(Get-ChildItem -LiteralPath $codex -Recurse -File -Filter $legacyPackName | Where-Object { $_.FullName -match "quarantine-superpowers" })
+  Check ($claudePackPreserved.Count -eq 1) "Claude detached legacy Git object was not quarantined exactly once"
+  Check ($codexPackPreserved.Count -eq 1) "Codex detached legacy Git object was not quarantined exactly once"
+  foreach ($detached in @($claudePackPreserved) + @($codexPackPreserved)) {
+    Check (-not (Get-Item -LiteralPath $detached.FullName -Force).LinkType) "quarantined legacy Git object retained external hardlink identity: $($detached.FullName)"
+    Check ((Get-FileHash -Algorithm SHA256 -LiteralPath $detached.FullName).Hash.ToLowerInvariant() -eq $sharedObjectSha256) "detached legacy Git object bytes changed: $($detached.FullName)"
+  }
+  Check ((Get-FileHash -Algorithm SHA256 -LiteralPath $sharedObject).Hash.ToLowerInvariant() -eq $sharedObjectSha256) "external shared Git object changed during verified finalization"
 
   $firstClaudeTarget = $claudeTarget
   $firstCodexTarget = $codexTarget
