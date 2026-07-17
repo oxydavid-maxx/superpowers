@@ -75,7 +75,7 @@ function Seed-OldHome([string]$homePath, [bool]$isClaude) {
   New-Item -ItemType Directory -Force -Path (Join-Path $old ".claude-plugin") | Out-Null
   @{ name = "superpowers"; version = $legacyVersion } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $old ".claude-plugin\plugin.json") -Encoding utf8
   $current = Join-Path $base "current"
-  New-Item -ItemType Directory -Force -Path $current | Out-Null
+  New-Item -ItemType Junction -Path $current -Target $old | Out-Null
   [IO.File]::WriteAllBytes((Join-Path $current "current-sentinel.bin"), [byte[]](9, 8, 7, 6, 255))
 
   $official = Join-Path $homePath "plugins\cache\claude-plugins-official\superpowers\6.0.3"
@@ -188,8 +188,10 @@ try {
   Check ($failureMessage -like "*Injected failure at AfterCodex*") "missing deterministic injected failure; got '$failureMessage'"
   Check ($afterFailureClaude -eq $beforeClaude) "Claude home bytes/pointer were not restored after injected failure"
   Check ($afterFailureCodex -eq $beforeCodex) "Codex home bytes/pointer were not restored after injected failure"
-  Check (-not (Get-Item -LiteralPath $seedClaude.current -Force).LinkType) "Claude regular current identity changed during rollback"
-  Check (-not (Get-Item -LiteralPath $seedCodex.current -Force).LinkType) "Codex regular current identity changed during rollback"
+  Check ((Get-Item -LiteralPath $seedClaude.current -Force).LinkType -eq "Junction") "Claude legacy current junction identity changed during rollback"
+  Check ((Get-Item -LiteralPath $seedCodex.current -Force).LinkType -eq "Junction") "Codex legacy current junction identity changed during rollback"
+  Check ((Resolve-Target $seedClaude.current) -eq (Resolve-Path -LiteralPath $seedClaude.old).Path) "Claude legacy current target changed during rollback"
+  Check ((Resolve-Target $seedCodex.current) -eq (Resolve-Path -LiteralPath $seedCodex.old).Path) "Codex legacy current target changed during rollback"
   Check ((Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $seedClaude.current "current-sentinel.bin")).Hash.ToLowerInvariant() -eq $seedClaude.current_sentinel_sha256) "Claude current preimage bytes were not restored"
   Check ((Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $seedCodex.current "current-sentinel.bin")).Hash.ToLowerInvariant() -eq $seedCodex.current_sentinel_sha256) "Codex current preimage bytes were not restored"
 

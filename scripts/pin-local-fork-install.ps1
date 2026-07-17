@@ -44,6 +44,157 @@ function Invoke-HardKill([string]$point) {
   [Environment]::Exit(197)
 }
 
+function Test-SPForkBaseRecordName([string]$name) {
+  return @("claude-fork-base", "codex-fork-base") -contains $name
+}
+
+function Assert-SPManagedForkTree(
+  [string]$forkBase,
+  [string]$expectedLegacyTarget = "",
+  [bool]$allowDanglingLegacy = $false,
+  [bool]$allowMissingLegacy = $false
+) {
+  $base = Get-SPCanonicalPath $forkBase
+  $baseItem = Get-SPItem $base
+  if ($null -eq $baseItem) {
+    if (-not [string]::IsNullOrWhiteSpace($expectedLegacyTarget)) {
+      throw "managed cache lost its legacy current junction: $base"
+    }
+    return ""
+  }
+  if (-not $baseItem.PSIsContainer -or (Test-SPReparseItem $baseItem)) {
+    throw "managed cache root must be a plain directory: $base"
+  }
+
+  $current = Join-Path $base "current"
+  $currentItem = Get-SPItem $current
+  $legacyTarget = ""
+  if ($null -ne $currentItem -and (Test-SPReparseItem $currentItem)) {
+    if ([string]$currentItem.LinkType -cne "Junction") {
+      throw "managed cache current reparse point must be a Junction: $current"
+    }
+    $targets = @($currentItem.Target)
+    if ($targets.Count -ne 1 -or [string]::IsNullOrWhiteSpace([string]$targets[0])) {
+      throw "managed cache current Junction has no exact target: $current"
+    }
+    try {
+      $legacyTarget = Get-SPCanonicalPath ([string]$targets[0])
+    } catch {
+      throw "managed cache current Junction target is invalid: $current"
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($expectedLegacyTarget)) {
+      $expected = Get-SPCanonicalPath $expectedLegacyTarget
+      if (-not $legacyTarget.Equals($expected, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "managed cache current Junction target changed: $current"
+      }
+    } elseif (-not (Split-Path -Parent $legacyTarget).Equals($base, [StringComparison]::OrdinalIgnoreCase)) {
+      throw "managed cache current Junction target is not a direct contained sibling: $current"
+    }
+
+    if ((Split-Path -Leaf $legacyTarget).Equals("current", [StringComparison]::OrdinalIgnoreCase)) {
+      throw "managed cache current Junction cannot target itself: $current"
+    }
+    if (-not $allowDanglingLegacy) {
+      $targetItem = Get-SPItem $legacyTarget
+      if ($null -eq $targetItem -or -not $targetItem.PSIsContainer) {
+        throw "managed cache current Junction reparse point is dangling: $current"
+      }
+      $physicalTarget = Get-SPPhysicalCanonicalPath $legacyTarget
+      $physicalCurrent = Get-SPPhysicalCanonicalPath $current
+      if (-not $physicalCurrent.Equals($physicalTarget, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "managed cache current Junction does not resolve to its declared target: $current"
+      }
+    }
+  } elseif (-not [string]::IsNullOrWhiteSpace($expectedLegacyTarget) -and -not $allowMissingLegacy) {
+    throw "managed cache lost its legacy current Junction: $current"
+  } elseif (-not [string]::IsNullOrWhiteSpace($expectedLegacyTarget) -and $null -ne $currentItem) {
+    throw "managed cache replaced its legacy current Junction with an unexpected item: $current"
+  }
+
+  foreach ($child in @(Get-ChildItem -LiteralPath $base -Force)) {
+    if (-not [string]::IsNullOrWhiteSpace($legacyTarget) -and
+        (Get-SPCanonicalPath $child.FullName).Equals($current, [StringComparison]::OrdinalIgnoreCase)) {
+      continue
+    }
+    Assert-SPPlainTree $child.FullName "managed cache"
+  }
+  return $legacyTarget
+}
+
+function Get-SPManagedForkTreeFingerprint(
+  [string]$forkBase,
+  [string]$expectedLegacyTarget,
+  [bool]$allowDanglingLegacy = $false,
+  [bool]$allowMissingLegacy = $false
+) {
+  $item = Get-SPItem $forkBase
+  if ($null -eq $item) { return Get-SPStringSha256 "ABSENT" }
+  $legacyTarget = Assert-SPManagedForkTree $forkBase $expectedLegacyTarget $allowDanglingLegacy $allowMissingLegacy
+  $current = Get-SPCanonicalPath (Join-Path $forkBase "current")
+  $records = New-Object System.Collections.Generic.List[string]
+  $records.Add("D|") | Out-Null
+  foreach ($child in @(Get-ChildItem -LiteralPath $forkBase -Force | Sort-Object Name)) {
+    if (-not [string]::IsNullOrWhiteSpace($legacyTarget) -and
+        (Get-SPCanonicalPath $child.FullName).Equals($current, [StringComparison]::OrdinalIgnoreCase)) {
+      continue
+    }
+    $records.Add("C|$($child.Name)|$(Get-SPTreeFingerprint $child.FullName)") | Out-Null
+  }
+  return Get-SPStringSha256 ($records -join [Environment]::NewLine)
+}
+
+function Get-SPRecordLegacyCurrentTarget($record) {
+  return [string]$record.legacy_current_target
+}
+
+function Get-SPRecordFingerprint(
+  $record,
+  [string]$path,
+  [bool]$allowDanglingLegacy = $false,
+  [bool]$allowMissingLegacy = $false
+) {
+  $legacyTarget = Get-SPRecordLegacyCurrentTarget $record
+  if ([string]::IsNullOrWhiteSpace($legacyTarget)) { return Get-SPTreeFingerprint $path }
+  return Get-SPManagedForkTreeFingerprint $path $legacyTarget $allowDanglingLegacy $allowMissingLegacy
+}
+
+function Move-SPRecordPreimage(
+  $record,
+  [string]$source,
+  [string]$destination,
+  [bool]$allowDanglingLegacy = $false
+) {
+  $legacyTarget = Get-SPRecordLegacyCurrentTarget $record
+  if ([string]::IsNullOrWhiteSpace($legacyTarget)) {
+    Move-Checked $source $destination ([string]$record.home)
+    return
+  }
+  Assert-SPContained ([string]$record.home) $source "move source"
+  Assert-SPContained ([string]$record.home) $destination "move destination"
+  Assert-SPNoReparseAncestors $source "move source"
+  Assert-SPNoReparseAncestors (Split-Path -Parent $destination) "move destination"
+  Assert-SPManagedForkTree $source $legacyTarget $allowDanglingLegacy $false | Out-Null
+  if ($null -ne (Get-SPItem $destination)) { throw "move destination already exists: $destination" }
+  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $destination) | Out-Null
+  Move-Item -LiteralPath $source -Destination $destination
+}
+
+function Remove-SPVerifiedLegacyCurrent($record, [string]$forkBase) {
+  $legacyTarget = Get-SPRecordLegacyCurrentTarget $record
+  if ([string]::IsNullOrWhiteSpace($legacyTarget)) { return }
+  Assert-SPManagedForkTree $forkBase $legacyTarget $true $true | Out-Null
+  $current = Join-Path $forkBase "current"
+  $currentItem = Get-SPItem $current
+  if ($null -ne $currentItem) {
+    if ([string]$currentItem.LinkType -cne "Junction") {
+      throw "verified legacy current is no longer a Junction: $current"
+    }
+    [System.IO.Directory]::Delete($current, $false)
+  }
+  Assert-SPPlainTree $forkBase "verified legacy archive"
+}
+
 function Get-ControlPaths([string]$claude, [string]$codex) {
   return @(
     (Join-Path $claude ".superpowers-pin"),
@@ -54,10 +205,10 @@ function Get-ControlPaths([string]$claude, [string]$codex) {
 function Assert-ScopedExistingState([string]$homePath, [bool]$isClaude) {
   $forkBase = Join-Path $homePath "plugins\cache\superpowers-dev\superpowers"
   $official = Join-Path $homePath "plugins\cache\claude-plugins-official\superpowers"
-  foreach ($path in @($forkBase, $official)) {
-    Assert-SPNoReparseAncestors $path "managed cache path"
-    if ($null -ne (Get-SPItem $path)) { Assert-SPPlainTree $path "managed cache" }
-  }
+  Assert-SPNoReparseAncestors $forkBase "managed cache path"
+  Assert-SPManagedForkTree $forkBase | Out-Null
+  Assert-SPNoReparseAncestors $official "managed cache path"
+  if ($null -ne (Get-SPItem $official)) { Assert-SPPlainTree $official "managed cache" }
   if ($isClaude) {
     foreach ($file in @(
       (Join-Path $homePath "plugins\installed_plugins.json"),
@@ -195,6 +346,19 @@ function Assert-TransactionJournalShape($journal, [string]$claude, [string]$code
     if ([string]$record.preimage_fingerprint -notmatch "^[0-9a-f]{64}$" -or [string]$record.replacement_fingerprint -notmatch "^[0-9a-f]{64}$") {
       throw "durable journal record fingerprint is invalid"
     }
+    $legacyTarget = [string]$record.legacy_current_target
+    if (Test-SPForkBaseRecordName $name) {
+      if (-not [string]::IsNullOrWhiteSpace($legacyTarget)) {
+        $legacyTarget = Get-SPCanonicalPath $legacyTarget
+        $forkBase = Get-SPCanonicalPath ([string]$definition.Target)
+        if (-not (Split-Path -Parent $legacyTarget).Equals($forkBase, [StringComparison]::OrdinalIgnoreCase) -or
+            (Split-Path -Leaf $legacyTarget).Equals("current", [StringComparison]::OrdinalIgnoreCase)) {
+          throw "durable journal legacy current target is not a direct contained sibling"
+        }
+      }
+    } elseif (-not [string]::IsNullOrWhiteSpace($legacyTarget)) {
+      throw "durable journal non-fork record declares a legacy current target"
+    }
     if (@("prepared", "removing", "removed", "installed", "rolled-back", "finalized") -notcontains [string]$record.phase) {
       throw "durable journal record phase is invalid"
     }
@@ -279,9 +443,9 @@ function Recover-Transaction($journal, [string[]]$journalPaths, [string[]]$contr
         $discard = Join-Path $assetRoot ("discard-" + $index)
         Move-Checked $target $discard ([string]$record.home)
       }
-      Move-Checked $backup $target ([string]$record.home)
+      Move-SPRecordPreimage $record $backup $target $true
     } elseif ($targetExists) {
-      $actual = Get-SPTreeFingerprint $target
+      $actual = Get-SPRecordFingerprint $record $target $false $false
       if ([string]$record.preimage_fingerprint -eq (Get-SPStringSha256 "ABSENT")) {
         if ($actual -ne [string]$record.replacement_fingerprint) {
           throw "recovery CAS rejected changed new target: $target"
@@ -294,7 +458,7 @@ function Recover-Transaction($journal, [string[]]$journalPaths, [string[]]$contr
     } elseif ([string]$record.preimage_fingerprint -ne (Get-SPStringSha256 "ABSENT")) {
       throw "recovery lost both target and backup: $target"
     }
-    if ((Get-SPTreeFingerprint $target) -ne [string]$record.preimage_fingerprint) {
+    if ((Get-SPRecordFingerprint $record $target $false $false) -ne [string]$record.preimage_fingerprint) {
       throw "recovery did not restore exact preimage: $target"
     }
     $record.phase = "rolled-back"
@@ -352,6 +516,15 @@ function New-Record(
 ) {
   $backup = Join-Path $assetRoot ("backup-" + $name)
   $replacement = if ($staged -and $null -ne (Get-SPItem $staged)) { Get-SPTreeFingerprint $staged } else { Get-SPStringSha256 "ABSENT" }
+  $legacyTarget = ""
+  if (Test-SPForkBaseRecordName $name) {
+    $legacyTarget = Assert-SPManagedForkTree $target
+  }
+  $preimage = if ([string]::IsNullOrWhiteSpace($legacyTarget)) {
+    Get-SPTreeFingerprint $target
+  } else {
+    Get-SPManagedForkTreeFingerprint $target $legacyTarget $false $false
+  }
   return [pscustomobject][ordered]@{
     name = $name
     home = $homePath
@@ -359,21 +532,22 @@ function New-Record(
     staged = $staged
     asset_root = $assetRoot
     backup = $backup
-    preimage_fingerprint = Get-SPTreeFingerprint $target
+    preimage_fingerprint = $preimage
     replacement_fingerprint = $replacement
+    legacy_current_target = $legacyTarget
     phase = "prepared"
   }
 }
 
 function Deploy-Record($journal, $record, [string[]]$journalPaths, [bool]$isPointerRemovalSeam) {
-  if ((Get-SPTreeFingerprint ([string]$record.target)) -ne [string]$record.preimage_fingerprint) {
+  if ((Get-SPRecordFingerprint $record ([string]$record.target) $false $false) -ne [string]$record.preimage_fingerprint) {
     throw "preimage CAS rejected concurrent change: $($record.target)"
   }
   Assert-SPNoReparseAncestors ([string]$record.target) "deployment target"
   $record.phase = "removing"
   Write-TransactionJournal $journal $journalPaths
   if ($null -ne (Get-SPItem ([string]$record.target))) {
-    Move-Checked ([string]$record.target) ([string]$record.backup) ([string]$record.home)
+    Move-SPRecordPreimage $record ([string]$record.target) ([string]$record.backup) $false
   }
   $record.phase = "removed"
   Write-TransactionJournal $journal $journalPaths
@@ -452,15 +626,16 @@ function Finalize-VerifiedTransaction($journal, [string[]]$journalPaths, [string
     } else {
       if ($backupExists -and $archiveExists) { throw "verified finalization found duplicate preimage: $($record.name)" }
       if ($backupExists) {
-        if ((Get-SPTreeFingerprint $backup) -ne [string]$record.preimage_fingerprint) {
+        if ((Get-SPRecordFingerprint $record $backup $true $true) -ne [string]$record.preimage_fingerprint) {
           throw "verified finalization backup fingerprint mismatch: $($record.name)"
         }
+        Remove-SPVerifiedLegacyCurrent $record $backup
         Move-Checked $backup $archive ([string]$record.home)
         Invoke-HardKill "DuringFinalize"
         $archiveExists = $true
       }
       if (-not $archiveExists) { throw "verified finalization lost preimage: $($record.name)" }
-      if ((Get-SPTreeFingerprint $archive) -ne [string]$record.preimage_fingerprint) {
+      if ((Get-SPRecordFingerprint $record $archive $true $true) -ne [string]$record.preimage_fingerprint) {
         throw "verified finalization archive fingerprint mismatch: $($record.name)"
       }
       if ($null -ne $result) {

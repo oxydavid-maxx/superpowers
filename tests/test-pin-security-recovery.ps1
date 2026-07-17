@@ -159,6 +159,16 @@ function Seed-RegularCurrent([string]$homePath, [string]$label) {
   return $current
 }
 
+function Seed-LegacyCurrentJunction([string]$homePath, [string]$label) {
+  $base = Join-Path $homePath "plugins\cache\superpowers-dev\superpowers"
+  $legacy = Join-Path $base "6.0.3-vmodel.17"
+  New-Item -ItemType Directory -Force -Path $legacy | Out-Null
+  [IO.File]::WriteAllText((Join-Path $legacy "legacy-sentinel.txt"), $label)
+  $current = Join-Path $base "current"
+  New-Item -ItemType Junction -Path $current -Target $legacy | Out-Null
+  return $current
+}
+
 function Get-PinChildArguments(
   [string]$claudeHome,
   [string]$codexHome,
@@ -447,8 +457,8 @@ try {
     $crashRoot = Join-Path $tmp ("crash-" + $killPoint)
     $crashClaude = Join-Path $crashRoot "claude"
     $crashCodex = Join-Path $crashRoot "codex"
-    Seed-RegularCurrent $crashClaude ("claude-" + $killPoint) | Out-Null
-    Seed-RegularCurrent $crashCodex ("codex-" + $killPoint) | Out-Null
+    Seed-LegacyCurrentJunction $crashClaude ("claude-" + $killPoint) | Out-Null
+    Seed-LegacyCurrentJunction $crashCodex ("codex-" + $killPoint) | Out-Null
     $stdout = Join-Path $crashRoot "child.out"
     $stderr = Join-Path $crashRoot "child.err"
     $arguments = Get-PinChildArguments $crashClaude $crashCodex $source $baseCommit $killPoint 0
