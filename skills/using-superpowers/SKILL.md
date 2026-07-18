@@ -86,7 +86,7 @@ The response MUST NOT:
 
 ## Registered Superpower Engine
 
-`superpower-graph` (SPG, `C:\dev\superpower-graph`) is the lifecycle and typed
+`superpower-graph` (SPG, `C:\dev\skills\superpower-graph`) is the lifecycle and typed
 artifact authority. Its production role is S0/S1 discussion/specification handshakes,
 the two digest-bound approvals, and mechanical evidence contracts through S2–S6.
 
@@ -109,13 +109,13 @@ Use superpower graph from S0 for this task.
 Treat that as:
 
 1. Start at `S0_DISCUSS` unless the user supplies a validated SPG run receipt.
-2. Use `C:\dev\superpower-graph` as the lifecycle and transition-contract source.
+2. Use `C:\dev\skills\superpower-graph` as the lifecycle and transition-contract source.
 3. Keep S0/S1 in the current host session and submit typed completion payloads to SPG.
 4. Continue S2–S6 in the current host session with the canonical quality skills; SPG validates their evidence mechanically.
 5. Inspect authority with the focused commands below; do not update or switch the repository implicitly:
 
 ```powershell
-cd C:\dev\superpower-graph
+cd C:\dev\skills\superpower-graph
 py -3 -m spg.cli contract lint
 py -3 -m spg.cli owner-matrix --md
 ```

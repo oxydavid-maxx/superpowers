@@ -5,7 +5,7 @@ This fork carries 光佑's V-model verification arm on top of upstream `obra/sup
 ## Layout
 
 ```
-C:\dev\superpowers-fork/                ← local clone (this repo)
+C:\dev\skills\superpowers/              ← local clone (this repo)
   origin   = https://github.com/oxydavid-maxx/superpowers   (our fork)
   upstream = https://github.com/obra/superpowers            (read-only — sync FROM only)
 ```
@@ -23,7 +23,7 @@ Our V-model additions live in:
 Cadence: when there's an upstream feature/fix we want, or quarterly. Not every commit.
 
 ```bash
-cd C:\dev\superpowers-fork
+cd C:\dev\skills\superpowers
 git fetch upstream
 git rebase upstream/main
 # Resolve any conflicts (likely in brainstorming/writing-plans where we edited).
@@ -61,7 +61,7 @@ claude plugin disable superpowers@superpowers-dev
 
 - **Do NOT open a PR upstream** with fork-specific changes. Their CLAUDE.md closes them; 94% PR rejection rate.
 - **Do NOT bare `--force` push** to fork main — use `--force-with-lease`.
-- **Do NOT edit `~/.claude/plugins/cache/superpowers-dev/...` directly.** That's the installed copy; updates overwrite it. Edit `C:\dev\superpowers-fork/`, commit, push, then `plugin marketplace update`.
+- **Do NOT edit `~/.claude/plugins/cache/superpowers-dev/...` directly.** That's the installed copy; updates overwrite it. Edit `C:\dev\skills\superpowers/`, commit, push, then `plugin marketplace update`.
 
 ## Why we forked (one-line)
 
