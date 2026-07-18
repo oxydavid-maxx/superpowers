@@ -89,7 +89,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-local-fork-in
 ```
 
 For the currently approved `6.0.3-native.18` package, `<APPROVED-PACKAGE-DIGEST>` is
-`b070d6682ffd64fc21cd3e507c77be3661cfbe309a49dafd82814f5f676bfdcf`. Every new release
+`2f686cf09aff6d76b0416df01fb7e0cd71b949a2b7542b46984c1f908a9d29e3`. Every new release
 changes the manifest blobs, so its package digest and the script approval constant must be
 independently recomputed and reviewed; never reuse the prior digest.
 

@@ -9,7 +9,7 @@ $ErrorActionPreference = "Stop"
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $pin = Join-Path $repoRoot "scripts\pin-local-fork-install.ps1"
 $verify = Join-Path $repoRoot "scripts\verify-local-fork-install.ps1"
-$approvedDigest = "b070d6682ffd64fc21cd3e507c77be3661cfbe309a49dafd82814f5f676bfdcf"
+$approvedDigest = "2f686cf09aff6d76b0416df01fb7e0cd71b949a2b7542b46984c1f908a9d29e3"
 $expectedVersion = "6.0.3-native.18"
 $fails = New-Object System.Collections.Generic.List[string]
 

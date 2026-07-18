@@ -939,7 +939,7 @@ try {
 
   Invoke-InjectedFailure "BeforeVerify"
   $installedInfo = Assert-InstalledState $ClaudeHome $CodexHome $identity
-  $verifyOutput = @(& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "verify-local-fork-install.ps1") `
+  $verifyOutput = @(& pwsh.exe -NoLogo -NoProfile -NonInteractive -File (Join-Path $PSScriptRoot "verify-local-fork-install.ps1") `
     -ClaudeHome $ClaudeHome -CodexHome $CodexHome -ExpectedVersion $identity.Version `
     -ExpectedSourceCommit $identity.Commit -ExpectedPackageDigest $identity.PackageDigest 2>&1)
   if ($LASTEXITCODE -ne 0) { throw "verify-local-fork-install.ps1 failed after pin: $($verifyOutput -join ' ')" }
