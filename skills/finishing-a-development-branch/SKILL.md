@@ -1,6 +1,6 @@
 ---
 name: finishing-a-development-branch
-description: Use when implementation is complete, all tests pass, and you need to decide how to integrate the work - guides completion of development work by presenting structured options for merge, PR, or cleanup
+description: Use when implementation is complete, required proof is green, and you need to integrate, publish, preserve, or discard the exact candidate
 ---
 
 # Finishing a Development Branch
@@ -9,22 +9,34 @@ description: Use when implementation is complete, all tests pass, and you need t
 
 Guide completion of development work by presenting clear options and handling chosen workflow.
 
-**Core principle:** Verify tests → Detect environment → Present options → Execute choice → Clean up.
+**Core principle:** Resolve affected proof → Detect environment → Choose final destination → Run one integrated RC → Clean up.
 
 **Announce at start:** "I'm using the finishing-a-development-branch skill to complete this work."
 
 ## The Process
 
-### Step 1: Verify Tests
+### Step 1: Resolve Required Proof
 
-**Before presenting options, verify tests pass:**
+Before presenting options, bind the current candidate and its required proof map. Reuse
+an existing PASS only when its exact action key and every result-affecting input binding
+match. Rerun only invalidated proof; do not rerun already-green actions for ceremony.
 
-```bash
-# Run project's test suite
-npm test / cargo test / pytest / go test ./...
-```
+Candidate drift or input drift that changes a result-affecting binding rejects the
+affected receipt. Commit-only drift with identical result-affecting bindings does not
+invalidate an action receipt, but the final integrated RC must still bind the exact final
+candidate.
 
-**If tests fail:**
+#### Full-suite trigger contract
+
+A physical full suite runs only for `bootstrap`, `weekly canary`, or
+`named-high-risk:<reason>`. Normal publish or merge alone is not a full-suite trigger.
+The approved trigger and reason belong in the RC receipt; physical full runs are
+cache-disabled and run once on the unchanged candidate.
+
+For every other branch finish, use the smallest required affected proof now and form one
+integrated RC only after the chosen integration path determines the exact final candidate.
+
+**If required proof fails:**
 ```
 Tests failing (<N> failures). Must fix before completing:
 
@@ -35,7 +47,7 @@ Cannot proceed with merge/PR until tests pass.
 
 Stop. Don't proceed to Step 2.
 
-**If tests pass:** Continue to Step 2.
+**If required proof is green:** Continue to Step 2.
 
 ### Step 2: Detect Environment
 
@@ -106,8 +118,8 @@ git checkout <base-branch>
 git pull
 git merge <feature-branch>
 
-# Verify tests on merged result
-<test command>
+# Bind the merged candidate, reuse identical action receipts, and run one integrated RC.
+# If merge changed a result-affecting input, return to FOCUS and rerun only invalidated proof.
 
 # Only after merge succeeds: cleanup worktree (Step 6), then delete branch
 ```
@@ -121,6 +133,7 @@ git branch -d <feature-branch>
 #### Option 2: Push and Create PR
 
 ```bash
+# Run one integrated RC on this exact candidate, then push it unchanged.
 # Push branch
 git push -u origin <feature-branch>
 ```
@@ -129,7 +142,8 @@ git push -u origin <feature-branch>
 
 #### Option 3: Keep As-Is
 
-Report: "Keeping branch <name>. Worktree preserved at <path>."
+Run one integrated RC on the exact candidate, then report: "Keeping branch <name>.
+Worktree preserved at <path>."
 
 **Don't cleanup worktree.**
 
@@ -194,7 +208,15 @@ git worktree prune  # Self-healing: clean up any stale registrations
 
 **Skipping test verification**
 - **Problem:** Merge broken code, create failing PR
-- **Fix:** Always verify tests before offering options
+- **Fix:** Resolve exact-bound affected proof before options, then run one integrated RC on the final candidate
+
+**Rerunning the full suite because this is a merge or publish**
+- **Problem:** Duplicates valid proof and turns release ceremony into runtime
+- **Fix:** Require `bootstrap`, `weekly canary`, or `named-high-risk:<reason>`; otherwise reuse exact-bound PASS receipts
+
+**Treating every new commit ID as invalidation**
+- **Problem:** Reruns unchanged actions after metadata-only commits
+- **Fix:** Compare every result-affecting input binding; reject real candidate or input drift
 
 **Open-ended questions**
 - **Problem:** "What should I do next?" is ambiguous
@@ -224,7 +246,9 @@ git worktree prune  # Self-healing: clean up any stale registrations
 
 **Never:**
 - Proceed with failing tests
-- Merge without verifying tests on result
+- Merge without binding and validating the final candidate proof map
+- Run a physical full suite for normal publish or merge alone
+- Count a cached PASS and duplicate FOCUS execution as separate evidence
 - Delete work without confirmation
 - Force-push without explicit request
 - Remove a worktree before confirming merge success
@@ -232,7 +256,8 @@ git worktree prune  # Self-healing: clean up any stale registrations
 - Run `git worktree remove` from inside the worktree
 
 **Always:**
-- Verify tests before offering options
+- Resolve exact-bound required proof before offering options
+- Run one integrated RC on the exact final candidate
 - Detect environment before presenting menu
 - Present exactly 4 options (or 3 for detached HEAD)
 - Get typed confirmation for Option 4

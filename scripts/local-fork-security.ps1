@@ -1,4 +1,4 @@
-$script:SPApprovedPackageDigest = "2f686cf09aff6d76b0416df01fb7e0cd71b949a2b7542b46984c1f908a9d29e3"
+$script:SPApprovedPackageDigest = "f6f46a8be0e88e3df9d345ceab5c5e44e6f3bd8496b9744a5648dc3907933d0c"
 $script:SPForkUrl = "https://github.com/oxydavid-maxx/superpowers"
 
 function Get-SPApprovedPackageDigest {

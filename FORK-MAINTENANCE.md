@@ -16,7 +16,7 @@ Our V-model additions live in:
 - `skills/writing-arch/` — **superseded/historical**: architecture placement is now encoded by `Capability Registry.entry_point` + `## Surfaces`; this directory is no longer active or callable
 - `skills/verify-arch/` (new) — right-arm SWE.5 integration verify
 - `skills/verify-spec/` (new) — right-arm SWE.6 acceptance verify
-- `package.json` / `.claude-plugin/*.json` — version `6.0.3-native.N`
+- `package.json` / plugin manifests — immutable version `6.0.3-native.N`
 
 ## Routine: sync FROM upstream (keep our fork current)
 
@@ -74,24 +74,29 @@ remembering to police official-marketplace drift or stale caches):
 
 ```bash
 # 1. bump every declared manifest (jq-free; all 7 targets)
-bash scripts/bump-version.sh 6.0.3-native.<N+1>
+bash scripts/bump-version.sh 6.0.3-native.19
 # 2. coherency + provenance gates
 bash scripts/bump-version.sh --check && bash tests/test-manifest-version-coherency.sh && bash tests/test-fork-provenance.sh
 # 3. commit + push this source repo
-git add -A && git commit -m "release(6.0.3-native.<N+1>): ..." && git push
+git add -A && git commit -m "release(6.0.3-native.19): ..." && git push
 ```
 ```powershell
 # 4. pin the LOCAL Claude + Codex install to the reviewed release identity
 #    (<FULL-COMMIT> is the explicitly reviewed full source-commit approval token)
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/pin-local-fork-install.ps1 -ExpectedVersion 6.0.3-native.<N+1> -ExpectedSourceCommit <FULL-COMMIT> -ExpectedPackageDigest <APPROVED-PACKAGE-DIGEST>
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/pin-local-fork-install.ps1 -ExpectedVersion 6.0.3-native.19 -ExpectedSourceCommit <FULL-COMMIT> -ExpectedPackageDigest <APPROVED-PACKAGE-DIGEST>
 # (standalone verify, if needed)
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-local-fork-install.ps1 -ExpectedVersion 6.0.3-native.<N+1> -ExpectedSourceCommit <FULL-COMMIT> -ExpectedPackageDigest <APPROVED-PACKAGE-DIGEST>
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-local-fork-install.ps1 -ExpectedVersion 6.0.3-native.19 -ExpectedSourceCommit <FULL-COMMIT> -ExpectedPackageDigest <APPROVED-PACKAGE-DIGEST>
 ```
 
-For the currently approved `6.0.3-native.18` package, `<APPROVED-PACKAGE-DIGEST>` is
-`2f686cf09aff6d76b0416df01fb7e0cd71b949a2b7542b46984c1f908a9d29e3`. Every new release
-changes the manifest blobs, so its package digest and the script approval constant must be
-independently recomputed and reviewed; never reuse the prior digest.
+For the approved `6.0.3-native.19` package, `<APPROVED-PACKAGE-DIGEST>` is
+`f6f46a8be0e88e3df9d345ceab5c5e44e6f3bd8496b9744a5648dc3907933d0c`. It is the SHA-256
+of the sorted `path|git-blob-id` records for both runtime manifests and `skills/**` at the
+approved commit. Every new release changes those records, so never reuse the prior digest.
+
+The release uses one integrated RC. Exact action-key PASS receipts stay valid across
+candidate commits only while every result-affecting input binding is identical; rerun
+only invalidated proof. A physical full suite runs only for `bootstrap`, `weekly canary`,
+or `named-high-risk:<reason>` — normal publish or merge alone is not a full-suite trigger.
 
 `ExpectedSourceCommit` is the external approval token for the entire tracked Git tree, including
 hooks and other executable surfaces. The routine pushes first, but the script proves exact

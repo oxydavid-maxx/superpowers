@@ -9,7 +9,7 @@ $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $pin = Join-Path $root "scripts\pin-local-fork-install.ps1"
 $verify = Join-Path $root "scripts\verify-local-fork-install.ps1"
 $expected = (Get-Content -Raw -LiteralPath (Join-Path $root ".claude-plugin\plugin.json") | ConvertFrom-Json).version
-$approvedDigest = "2f686cf09aff6d76b0416df01fb7e0cd71b949a2b7542b46984c1f908a9d29e3"
+$approvedDigest = "f6f46a8be0e88e3df9d345ceab5c5e44e6f3bd8496b9744a5648dc3907933d0c"
 $legacyVersion = "6.0.3-vmodel.17"
 $legacyPackName = "pack-d42d000000000000000000000000000000000000.rev"
 $fails = New-Object System.Collections.Generic.List[string]
@@ -171,7 +171,7 @@ $receipts = Join-Path $tmp "receipts"
 New-Item -ItemType Directory -Force -Path $receipts | Out-Null
 
 try {
-  Check ($expected -eq "6.0.3-native.18") "source version is '$expected', expected 6.0.3-native.18"
+  Check ($expected -eq "6.0.3-native.19") "source version is '$expected', expected 6.0.3-native.19"
 
   $sharedObject = Join-Path $tmp ("shared-git-objects\" + $legacyPackName)
   New-Item -ItemType Directory -Force -Path (Split-Path -Parent $sharedObject) | Out-Null
