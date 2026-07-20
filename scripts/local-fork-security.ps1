@@ -1,4 +1,4 @@
-$script:SPApprovedPackageDigest = "f6f46a8be0e88e3df9d345ceab5c5e44e6f3bd8496b9744a5648dc3907933d0c"
+$script:SPApprovedPackageDigest = "4ec770a98ba2418475a734c6addebb4f67301b3e4833c3a97ffb577c0cfa6231"
 $script:SPForkUrl = "https://github.com/oxydavid-maxx/superpowers"
 
 function Get-SPApprovedPackageDigest {
@@ -239,7 +239,8 @@ function Get-SPStringSha256([string]$text) {
 
 function Get-SPCommitPackageInfo([string]$repo, [string]$commit) {
   $pathsResult = Invoke-SPGit $repo @("ls-tree", "-r", "--name-only", $commit, "--", ".claude-plugin/plugin.json", ".codex-plugin/plugin.json", "skills")
-  $paths = @($pathsResult.Output | ForEach-Object { [string]$_ } | Sort-Object)
+  [string[]]$paths = @($pathsResult.Output | ForEach-Object { [string]$_ })
+  [Array]::Sort($paths, [StringComparer]::Ordinal)
   if ($paths.Count -eq 0) { throw "source commit has no package content: $commit" }
   $records = New-Object System.Collections.Generic.List[string]
   foreach ($relative in $paths) {
@@ -429,10 +430,13 @@ function Get-SPCheckoutInfo(
   for ($offset = 0; $offset -lt $tracked.Count; $offset += 128) {
     $end = [Math]::Min($offset + 127, $tracked.Count - 1)
     $chunk = @($tracked[$offset..$end])
-    $actualHashes = @($chunk | & git --no-replace-objects -C $checkout hash-object --no-filters --stdin-paths 2>&1)
-    if ($LASTEXITCODE -ne 0) {
-      throw "batch checkout byte hashing failed: $($actualHashes -join ' ')"
-    }
+    # Never pipe path records from PowerShell to git. Windows PowerShell 5.1 adds a
+    # UTF-8 BOM to native-command stdin, which corrupts the first --stdin-paths
+    # record. Passing each path as a distinct argv element is byte-stable across
+    # pwsh/PS5 and retains batched hashing without spawning one git process per file.
+    $hashArguments = @("hash-object", "--no-filters", "--") + $chunk
+    $hashResult = Invoke-SPGit $checkout $hashArguments
+    $actualHashes = @($hashResult.Output)
     if ($actualHashes.Count -ne $chunk.Count) {
       throw "batch checkout byte hashing returned an incomplete result"
     }

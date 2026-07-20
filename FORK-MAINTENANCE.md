@@ -89,7 +89,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-local-fork-in
 ```
 
 For the approved `6.0.3-native.19` package, `<APPROVED-PACKAGE-DIGEST>` is
-`f6f46a8be0e88e3df9d345ceab5c5e44e6f3bd8496b9744a5648dc3907933d0c`. It is the SHA-256
+`4ec770a98ba2418475a734c6addebb4f67301b3e4833c3a97ffb577c0cfa6231`. It is the SHA-256
 of the sorted `path|git-blob-id` records for both runtime manifests and `skills/**` at the
 approved commit. Every new release changes those records, so never reuse the prior digest.
 

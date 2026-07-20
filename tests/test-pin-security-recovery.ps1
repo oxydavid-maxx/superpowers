@@ -9,7 +9,7 @@ $ErrorActionPreference = "Stop"
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $pin = Join-Path $repoRoot "scripts\pin-local-fork-install.ps1"
 $verify = Join-Path $repoRoot "scripts\verify-local-fork-install.ps1"
-$approvedDigest = "f6f46a8be0e88e3df9d345ceab5c5e44e6f3bd8496b9744a5648dc3907933d0c"
+$approvedDigest = "4ec770a98ba2418475a734c6addebb4f67301b3e4833c3a97ffb577c0cfa6231"
 $expectedVersion = "6.0.3-native.19"
 $fails = New-Object System.Collections.Generic.List[string]
 
@@ -41,7 +41,8 @@ function Get-StringSha256([string]$text) {
 }
 
 function Get-CommitPackageDigest([string]$repo, [string]$commit) {
-  $paths = @(Invoke-Git $repo @("ls-tree", "-r", "--name-only", $commit, "--", ".claude-plugin/plugin.json", ".codex-plugin/plugin.json", "skills") | Sort-Object)
+  [string[]]$paths = @(Invoke-Git $repo @("ls-tree", "-r", "--name-only", $commit, "--", ".claude-plugin/plugin.json", ".codex-plugin/plugin.json", "skills"))
+  [Array]::Sort($paths, [StringComparer]::Ordinal)
   $records = New-Object System.Collections.Generic.List[string]
   foreach ($relative in $paths) {
     $spec = "{0}:{1}" -f $commit, $relative
