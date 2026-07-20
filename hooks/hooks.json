@@ -1,38 +1,9 @@
 {
-  "hooks": {
-    "SessionStart": [
-      {
-        "matcher": "startup|clear|compact",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd\" session-start",
-            "async": false
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "py -3 \"${CLAUDE_PLUGIN_ROOT}/hooks/userpromptsubmit-superpower-entry\"",
-            "async": true
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "py -3 \"${CLAUDE_PLUGIN_ROOT}/hooks/stop-superpower-progress\"",
-            "async": true
-          }
-        ]
-      }
-    ]
-  }
+  "description": "Lifecycle behavior is routed by the global event dispatcher; this plugin must not add host-level command chains.",
+  "centralHookRegistration": {
+    "mode": "central-only",
+    "manifest": "~/.claude/hooks/event-dispatch-manifest.json",
+    "plugin": "superpowers"
+  },
+  "hooks": {}
 }
