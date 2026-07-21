@@ -54,8 +54,8 @@ The response MUST include:
 | S0_DISCUSS | `superpowers:brainstorming` — stakeholder needs, material unknowns, issue coverage, decision/clarification logs |
 | S0_DRAFT0 | `superpowers:brainstorming` — typed first specification draft |
 | S0_MOCK0 | `superpowers:brainstorming` — expected mock / non-UI equivalent |
-| S0_SOTA | `superpowers:brainstorming` + source research |
 | S0_APPROVE | SPG digest-bound human approval |
+| S0_SOTA | `superpowers:brainstorming` + source research |
 | S1_DISCUSS | `superpowers:brainstorming` — fold prior art back into discussion |
 | S1_DRAFT1 | `superpowers:brainstorming` — final capability registry and traceability |
 | S1_MOCK1 | `superpowers:brainstorming` — final expected mock / non-UI equivalent |
