@@ -9,7 +9,7 @@ $pin = Join-Path $root "scripts\pin-local-fork-install.ps1"
 $expected = (Get-Content -Raw -LiteralPath (Join-Path $root ".claude-plugin\plugin.json") | ConvertFrom-Json).version
 $fails = New-Object System.Collections.Generic.List[string]
 function Check($cond, $msg) { if (-not $cond) { $fails.Add($msg) | Out-Null; Write-Host "  FAIL: $msg" } }
-$approvedDigest = "eb18a2e61ee38ba9d56ab9a5b83797f1b5a853618ff7c05a88938a8466b40593"
+$approvedDigest = "6bf5e9a3d4bf019b8a136f21b6c378135d11c84ae5d864075652a906e2c6eb39"
 
 $testTemp = if (Test-Path -LiteralPath "C:\tmp" -PathType Container) { "C:\tmp" } else { $env:TEMP }
 $tmp = Join-Path $testTemp ("pinfork-dangling-" + [guid]::NewGuid().ToString("N").Substring(0, 8))

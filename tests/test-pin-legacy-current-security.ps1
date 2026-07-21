@@ -8,7 +8,7 @@ $ErrorActionPreference = "Stop"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $pin = Join-Path $root "scripts\pin-local-fork-install.ps1"
 $expected = (Get-Content -Raw -LiteralPath (Join-Path $root ".claude-plugin\plugin.json") | ConvertFrom-Json).version
-$approvedDigest = "eb18a2e61ee38ba9d56ab9a5b83797f1b5a853618ff7c05a88938a8466b40593"
+$approvedDigest = "6bf5e9a3d4bf019b8a136f21b6c378135d11c84ae5d864075652a906e2c6eb39"
 $fails = New-Object System.Collections.Generic.List[string]
 
 function Check([bool]$condition, [string]$message) {
