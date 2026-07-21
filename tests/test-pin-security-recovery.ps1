@@ -9,8 +9,8 @@ $ErrorActionPreference = "Stop"
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $pin = Join-Path $repoRoot "scripts\pin-local-fork-install.ps1"
 $verify = Join-Path $repoRoot "scripts\verify-local-fork-install.ps1"
-$approvedDigest = "6bf5e9a3d4bf019b8a136f21b6c378135d11c84ae5d864075652a906e2c6eb39"
-$expectedVersion = "6.0.3-native.20"
+$approvedDigest = "9ea8129d28c37dcc4f10a96558c23fd63012c8d132dbdf496d7d3c0bf9eb3d07"
+$expectedVersion = "6.0.3-native.21"
 $fails = New-Object System.Collections.Generic.List[string]
 
 function Check-Category([bool]$condition, [string]$name, [string]$detail) {
@@ -120,6 +120,7 @@ function Invoke-PinAttempt(
     ExpectedVersion = $expectedVersion
     ExpectedSourceCommit = $sourceCommit
     ExpectedPackageDigest = $packageDigest
+    IsolatedTestHome = $true
   }
   foreach ($key in $extra.Keys) { $arguments[$key] = $extra[$key] }
   try {
@@ -186,6 +187,7 @@ function Get-PinChildArguments(
     "-ExpectedVersion", $expectedVersion,
     "-ExpectedSourceCommit", $sourceCommit,
     "-ExpectedPackageDigest", $approvedDigest,
+    "-IsolatedTestHome",
     "-HardKillAt", $hardKillAt,
     "-HoldLockMilliseconds", [string]$holdLockMilliseconds
   )
@@ -214,7 +216,7 @@ New-Item -ItemType Directory -Force -Path $receipts | Out-Null
 try {
   $pinParameters = @((Get-Command $pin).Parameters.Keys)
   $verifyParameters = @((Get-Command $verify).Parameters.Keys)
-  $requiredPinApi = @("ExpectedSourceCommit", "ExpectedPackageDigest", "HardKillAt", "HoldLockMilliseconds")
+  $requiredPinApi = @("ExpectedSourceCommit", "ExpectedPackageDigest", "IsolatedTestHome", "HardKillAt", "HoldLockMilliseconds")
   $requiredVerifyApi = @("ExpectedSourceCommit", "ExpectedPackageDigest")
   $missingPinApi = @($requiredPinApi | Where-Object { $pinParameters -notcontains $_ })
   $missingVerifyApi = @($requiredVerifyApi | Where-Object { $verifyParameters -notcontains $_ })

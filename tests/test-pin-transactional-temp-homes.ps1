@@ -9,7 +9,7 @@ $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $pin = Join-Path $root "scripts\pin-local-fork-install.ps1"
 $verify = Join-Path $root "scripts\verify-local-fork-install.ps1"
 $expected = (Get-Content -Raw -LiteralPath (Join-Path $root ".claude-plugin\plugin.json") | ConvertFrom-Json).version
-$approvedDigest = "6bf5e9a3d4bf019b8a136f21b6c378135d11c84ae5d864075652a906e2c6eb39"
+$approvedDigest = "9ea8129d28c37dcc4f10a96558c23fd63012c8d132dbdf496d7d3c0bf9eb3d07"
 $legacyVersion = "6.0.3-vmodel.17"
 $legacyPackName = "pack-d42d000000000000000000000000000000000000.rev"
 $fails = New-Object System.Collections.Generic.List[string]
@@ -153,7 +153,7 @@ function Get-CommitPackageDigest([string]$repo, [string]$commit, [string[]]$rela
 }
 
 function Invoke-PinJson([string]$claudeHome, [string]$codexHome) {
-  $output = @(& $pin -ClaudeHome $claudeHome -CodexHome $codexHome -SourceRepo $script:sourceRepo -ExpectedVersion $expected -ExpectedSourceCommit $script:sourceHead -ExpectedPackageDigest $approvedDigest)
+  $output = @(& $pin -ClaudeHome $claudeHome -CodexHome $codexHome -SourceRepo $script:sourceRepo -ExpectedVersion $expected -ExpectedSourceCommit $script:sourceHead -ExpectedPackageDigest $approvedDigest -IsolatedTestHome)
   return (($output -join [Environment]::NewLine) | ConvertFrom-Json)
 }
 
@@ -171,7 +171,7 @@ $receipts = Join-Path $tmp "receipts"
 New-Item -ItemType Directory -Force -Path $receipts | Out-Null
 
 try {
-  Check ($expected -eq "6.0.3-native.20") "source version is '$expected', expected 6.0.3-native.20"
+  Check ($expected -eq "6.0.3-native.21") "source version is '$expected', expected 6.0.3-native.21"
 
   $sharedObject = Join-Path $tmp ("shared-git-objects\" + $legacyPackName)
   New-Item -ItemType Directory -Force -Path (Split-Path -Parent $sharedObject) | Out-Null
@@ -189,7 +189,7 @@ try {
 
   $failureMessage = ""
   try {
-    & $pin -ClaudeHome $claude -CodexHome $codex -SourceRepo $script:sourceRepo -ExpectedVersion $expected -ExpectedSourceCommit $script:sourceHead -ExpectedPackageDigest $approvedDigest -InjectFailureAt AfterCodex | Out-Null
+    & $pin -ClaudeHome $claude -CodexHome $codex -SourceRepo $script:sourceRepo -ExpectedVersion $expected -ExpectedSourceCommit $script:sourceHead -ExpectedPackageDigest $approvedDigest -IsolatedTestHome -InjectFailureAt AfterCodex | Out-Null
     Check $false "injected failure did not fail"
   } catch {
     $failureMessage = $_.Exception.Message
@@ -226,7 +226,7 @@ try {
   $mismatchBeforeCodex = Get-StateFingerprint $mismatchCodex
   $mismatchMessage = ""
   try {
-    & $pin -ClaudeHome $mismatchClaude -CodexHome $mismatchCodex -SourceRepo $script:sourceRepo -ExpectedVersion $legacyVersion -ExpectedSourceCommit $script:sourceHead -ExpectedPackageDigest $approvedDigest | Out-Null
+    & $pin -ClaudeHome $mismatchClaude -CodexHome $mismatchCodex -SourceRepo $script:sourceRepo -ExpectedVersion $legacyVersion -ExpectedSourceCommit $script:sourceHead -ExpectedPackageDigest $approvedDigest -IsolatedTestHome | Out-Null
     Check $false "version masquerade was accepted"
   } catch {
     $mismatchMessage = $_.Exception.Message

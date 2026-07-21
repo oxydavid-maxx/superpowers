@@ -20,6 +20,7 @@ param(
   [string]$ExpectedVersion = "",
   [string]$ExpectedSourceCommit = "",
   [string]$ExpectedPackageDigest = "",
+  [switch]$IsolatedTestHome,
   [ValidateSet("None", "AfterClaude", "AfterCodex", "BeforeVerify")]
   [string]$InjectFailureAt = "None",
   [ValidateSet("None", "AfterClaudeBeforeCodex", "AfterPointerRemoval", "AfterVerifiedBeforeFinalize", "DuringFinalize")]
@@ -836,6 +837,14 @@ $identity = Get-SPSourceIdentity $SourceRepo $ExpectedVersion $ExpectedSourceCom
 $homes = Assert-SPDistinctHomes $ClaudeHome $CodexHome
 $ClaudeHome = $homes.Claude
 $CodexHome = $homes.Codex
+if ($IsolatedTestHome) {
+  $defaultClaude = Get-SPCanonicalPath (Join-Path $env:USERPROFILE ".claude")
+  $defaultCodex = Get-SPCanonicalPath (Join-Path $env:USERPROFILE ".codex")
+  if ($ClaudeHome.Equals($defaultClaude, [StringComparison]::OrdinalIgnoreCase) -or
+      $CodexHome.Equals($defaultCodex, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "IsolatedTestHome cannot target a production user home"
+  }
+}
 Assert-ScopedExistingState $ClaudeHome $true
 Assert-ScopedExistingState $CodexHome $false
 
@@ -865,6 +874,13 @@ try {
   if ($HoldLockMilliseconds -gt 0) { Start-Sleep -Milliseconds $HoldLockMilliseconds }
   $pending = Read-PendingJournal $journalPaths $ClaudeHome $CodexHome $controlPaths
   if ($null -ne $pending) { Recover-Transaction $pending $journalPaths $controlPaths }
+
+  $canonicalBase = Get-SPCanonicalIntegrationBase $identity.SourceRepo
+  $activeLineages = if ($IsolatedTestHome) { @() } else { Get-SPActiveSourceCommits @($ClaudeHome, $CodexHome) }
+  Assert-SPPromotionLineage $identity.SourceRepo $identity.Commit $canonicalBase $activeLineages
+  $result["canonical_integration_base"] = $canonicalBase
+  $result["prior_active_source_lineages"] = @($activeLineages)
+  $result["lineage_mode"] = if ($IsolatedTestHome) { "isolated-test" } else { "production" }
 
   foreach ($control in $controlPaths) {
     foreach ($orphan in @(Get-ChildItem -LiteralPath $control -Directory -Force -ErrorAction SilentlyContinue | Where-Object { $_.Name -match "^(assets-|a-)" })) {

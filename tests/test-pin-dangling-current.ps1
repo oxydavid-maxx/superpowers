@@ -9,7 +9,7 @@ $pin = Join-Path $root "scripts\pin-local-fork-install.ps1"
 $expected = (Get-Content -Raw -LiteralPath (Join-Path $root ".claude-plugin\plugin.json") | ConvertFrom-Json).version
 $fails = New-Object System.Collections.Generic.List[string]
 function Check($cond, $msg) { if (-not $cond) { $fails.Add($msg) | Out-Null; Write-Host "  FAIL: $msg" } }
-$approvedDigest = "6bf5e9a3d4bf019b8a136f21b6c378135d11c84ae5d864075652a906e2c6eb39"
+$approvedDigest = "9ea8129d28c37dcc4f10a96558c23fd63012c8d132dbdf496d7d3c0bf9eb3d07"
 
 $testTemp = if (Test-Path -LiteralPath "C:\tmp" -PathType Container) { "C:\tmp" } else { $env:TEMP }
 $tmp = Join-Path $testTemp ("pinfork-dangling-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
@@ -34,7 +34,7 @@ try {
   # --- reject before mutation; never resolve or repair the attacker-controlled link ---
   $message = ""
   try {
-    & $pin -ClaudeHome $claude -CodexHome $codex -SourceRepo $source -ExpectedVersion $expected -ExpectedSourceCommit $sourceHead -ExpectedPackageDigest $approvedDigest | Out-Null
+    & $pin -ClaudeHome $claude -CodexHome $codex -SourceRepo $source -ExpectedVersion $expected -ExpectedSourceCommit $sourceHead -ExpectedPackageDigest $approvedDigest -IsolatedTestHome | Out-Null
     Check $false "dangling reparse point was accepted"
   } catch {
     $message = $_.Exception.Message

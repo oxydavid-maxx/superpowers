@@ -49,7 +49,7 @@ Reject-Text $verification "If you haven't run the verification command in this m
 Reject-Text $finishing "# Run project's test suite" "finishing-a-development-branch"
 Reject-Text $finishing "# Verify tests on merged result`n<test command>" "finishing-a-development-branch"
 
-Require-Text $maintenance "6.0.3-native.20" "FORK-MAINTENANCE"
+Require-Text $maintenance "6.0.3-native.21" "FORK-MAINTENANCE"
 Require-Text $maintenance "one integrated RC" "FORK-MAINTENANCE"
 Require-Text $maintenance "normal publish or merge alone" "FORK-MAINTENANCE"
 
@@ -61,8 +61,8 @@ $versions = foreach ($entry in $registry.files) {
   }
   [string]$value
 }
-if (@($versions | Where-Object { $_ -ne "6.0.3-native.20" }).Count -ne 0) {
-  $failures.Add("all .version-bump.json targets must equal immutable 6.0.3-native.20; got [$($versions -join ', ')]") | Out-Null
+if (@($versions | Where-Object { $_ -ne "6.0.3-native.21" }).Count -ne 0) {
+  $failures.Add("all .version-bump.json targets must equal immutable 6.0.3-native.21; got [$($versions -join ', ')]") | Out-Null
 }
 
 if ($failures.Count -gt 0) {

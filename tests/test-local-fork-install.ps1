@@ -11,7 +11,7 @@ $ErrorActionPreference = "Stop"
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $pin    = Join-Path $root "scripts\pin-local-fork-install.ps1"
 $expected = (Get-Content -Raw -LiteralPath (Join-Path $root ".claude-plugin\plugin.json") | ConvertFrom-Json).version
-$approvedDigest = "6bf5e9a3d4bf019b8a136f21b6c378135d11c84ae5d864075652a906e2c6eb39"
+$approvedDigest = "9ea8129d28c37dcc4f10a96558c23fd63012c8d132dbdf496d7d3c0bf9eb3d07"
 $fails = New-Object System.Collections.Generic.List[string]
 function Check($cond, $msg) { if (-not $cond) { $fails.Add($msg) | Out-Null; Write-Host "  FAIL: $msg" } }
 
@@ -41,7 +41,7 @@ try {
   New-Item -ItemType Directory -Force -Path (Join-Path $codex "plugins\cache\claude-plugins-official\superpowers") | Out-Null
 
   # --- run pin (it calls the verifier internally) ---
-  & $pin -ClaudeHome $claude -CodexHome $codex -SourceRepo $source -ExpectedVersion $expected -ExpectedSourceCommit $sourceHead -ExpectedPackageDigest $approvedDigest | Out-Null
+  & $pin -ClaudeHome $claude -CodexHome $codex -SourceRepo $source -ExpectedVersion $expected -ExpectedSourceCommit $sourceHead -ExpectedPackageDigest $approvedDigest -IsolatedTestHome | Out-Null
   Check ($LASTEXITCODE -eq 0) "pin run #1 (with internal verify) exited $LASTEXITCODE"
 
   $d = Get-Content -Raw -LiteralPath $ipj | ConvertFrom-Json
@@ -81,7 +81,7 @@ try {
   Check ((Resolve-Path -LiteralPath $codexCurrent).Path -ne (Resolve-Path -LiteralPath $codexActive).Path) "Codex current and versioned cache must be distinct staged checkouts"
 
   # --- idempotency: re-run must still verify green and not throw ---
-  & $pin -ClaudeHome $claude -CodexHome $codex -SourceRepo $source -ExpectedVersion $expected -ExpectedSourceCommit $sourceHead -ExpectedPackageDigest $approvedDigest | Out-Null
+  & $pin -ClaudeHome $claude -CodexHome $codex -SourceRepo $source -ExpectedVersion $expected -ExpectedSourceCommit $sourceHead -ExpectedPackageDigest $approvedDigest -IsolatedTestHome | Out-Null
   Check ($LASTEXITCODE -eq 0) "pin run #2 (idempotent) exited $LASTEXITCODE"
   & (Join-Path $root "scripts\verify-local-fork-install.ps1") -ClaudeHome $claude -CodexHome $codex -ExpectedVersion $expected -ExpectedSourceCommit $sourceHead -ExpectedPackageDigest $approvedDigest | Out-Null
   Check ($LASTEXITCODE -eq 0) "verifier after idempotent re-run exited $LASTEXITCODE"

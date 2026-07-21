@@ -1,4 +1,4 @@
-$script:SPApprovedPackageDigest = "6bf5e9a3d4bf019b8a136f21b6c378135d11c84ae5d864075652a906e2c6eb39"
+$script:SPApprovedPackageDigest = "9ea8129d28c37dcc4f10a96558c23fd63012c8d132dbdf496d7d3c0bf9eb3d07"
 $script:SPForkUrl = "https://github.com/oxydavid-maxx/superpowers"
 
 function Get-SPApprovedPackageDigest {
@@ -192,6 +192,63 @@ function Invoke-SPGit([string]$repo, [string[]]$arguments, [switch]$AllowFailure
     throw "git failed ($exitCode) in '$repo': $($arguments -join ' ') :: $($output -join ' ')"
   }
   return [pscustomobject]@{ ExitCode = $exitCode; Output = $output }
+}
+
+function Get-SPCanonicalIntegrationBase([string]$repo) {
+  $result = Invoke-SPGit $repo @("rev-parse", "refs/remotes/origin/main") -AllowFailure
+  if ($result.ExitCode -ne 0 -or $result.Output.Count -ne 1) {
+    throw "canonical integration base refs/remotes/origin/main is unavailable"
+  }
+  $commit = ([string]$result.Output[0]).Trim().ToLowerInvariant()
+  if ($commit -notmatch "^[0-9a-f]{40,64}$") {
+    throw "canonical integration base is invalid: $commit"
+  }
+  return $commit
+}
+
+function Get-SPActiveSourceCommits([string[]]$homes) {
+  $commits = New-Object System.Collections.Generic.List[string]
+  foreach ($home in $homes) {
+    $current = Join-Path $home "plugins\cache\superpowers-dev\superpowers\current"
+    if (-not (Test-Path -LiteralPath $current -PathType Container)) { continue }
+    $metadata = Join-Path $current ".superpowers-active.json"
+    $commit = ""
+    if (Test-Path -LiteralPath $metadata -PathType Leaf) {
+      try { $commit = [string]((Get-Content -Raw -LiteralPath $metadata -Encoding utf8 | ConvertFrom-Json).gitCommitSha) }
+      catch { throw "active source lineage metadata is unreadable at $metadata" }
+    } else {
+      $head = Invoke-SPGit $current @("rev-parse", "HEAD") -AllowFailure
+      if ($head.ExitCode -eq 0 -and $head.Output.Count -eq 1) { $commit = [string]$head.Output[0] }
+    }
+    $commit = $commit.Trim().ToLowerInvariant()
+    if ($commit -notmatch "^[0-9a-f]{40,64}$") {
+      throw "active source lineage is unavailable at $current"
+    }
+    if (-not $commits.Contains($commit)) { $commits.Add($commit) | Out-Null }
+  }
+  return @($commits)
+}
+
+function Assert-SPPromotionLineage(
+  [string]$repo,
+  [string]$candidate,
+  [string]$canonicalBase,
+  [string[]]$activeCommits
+) {
+  $requirements = New-Object System.Collections.Generic.List[object]
+  $requirements.Add([pscustomobject]@{ Label = "canonical integration base"; Commit = $canonicalBase }) | Out-Null
+  foreach ($active in @($activeCommits)) {
+    $requirements.Add([pscustomobject]@{ Label = "installed active source lineage"; Commit = $active }) | Out-Null
+  }
+  foreach ($required in $requirements) {
+    if ([string]$required.Commit -notmatch "^[0-9a-fA-F]{40,64}$") {
+      throw "$($required.Label) is invalid: $($required.Commit)"
+    }
+    $ancestor = Invoke-SPGit $repo @("merge-base", "--is-ancestor", ([string]$required.Commit), $candidate) -AllowFailure
+    if ($ancestor.ExitCode -ne 0) {
+      throw "candidate promotion rejected: candidate $candidate is not a descendant of $($required.Label) $($required.Commit)"
+    }
+  }
 }
 function Assert-SPApprovedRemote([string]$repo, [int]$depth = 0) {
   if ($depth -gt 3) { throw "source remote identity chain is too deep" }

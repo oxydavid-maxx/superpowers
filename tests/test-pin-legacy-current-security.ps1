@@ -8,7 +8,7 @@ $ErrorActionPreference = "Stop"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $pin = Join-Path $root "scripts\pin-local-fork-install.ps1"
 $expected = (Get-Content -Raw -LiteralPath (Join-Path $root ".claude-plugin\plugin.json") | ConvertFrom-Json).version
-$approvedDigest = "6bf5e9a3d4bf019b8a136f21b6c378135d11c84ae5d864075652a906e2c6eb39"
+$approvedDigest = "9ea8129d28c37dcc4f10a96558c23fd63012c8d132dbdf496d7d3c0bf9eb3d07"
 $fails = New-Object System.Collections.Generic.List[string]
 
 function Check([bool]$condition, [string]$message) {
@@ -31,7 +31,7 @@ function Assert-PinRejected([string]$name, [string]$claude, [string]$codex, [str
   try {
     & $pin -ClaudeHome $claude -CodexHome $codex -SourceRepo $script:source `
       -ExpectedVersion $expected -ExpectedSourceCommit $script:sourceHead `
-      -ExpectedPackageDigest $approvedDigest | Out-Null
+      -ExpectedPackageDigest $approvedDigest -IsolatedTestHome | Out-Null
     $accepted = $true
   } catch {
     $message = $_.Exception.Message
