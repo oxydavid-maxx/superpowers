@@ -53,6 +53,7 @@ try {
   & git -C $repo merge --quiet --no-ff $installed -m "integrated descendant"
   $integrated = (& git -C $repo rev-parse HEAD).Trim()
   Assert-SPPromotionLineage $repo $integrated $canonical @($installed)
+  Assert-SPPromotionLineage $repo $integrated $canonical @()
 
   $callIndex = $pinText.IndexOf("Assert-SPPromotionLineage")
   $assetIndex = $pinText.IndexOf('$runId = [DateTime]::UtcNow')

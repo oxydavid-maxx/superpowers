@@ -237,7 +237,7 @@ function Assert-SPPromotionLineage(
 ) {
   $requirements = New-Object System.Collections.Generic.List[object]
   $requirements.Add([pscustomobject]@{ Label = "canonical integration base"; Commit = $canonicalBase }) | Out-Null
-  foreach ($active in @($activeCommits)) {
+  foreach ($active in @($activeCommits | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })) {
     $requirements.Add([pscustomobject]@{ Label = "installed active source lineage"; Commit = $active }) | Out-Null
   }
   foreach ($required in $requirements) {
