@@ -111,14 +111,21 @@ Assert-Stage-Prefix $entry @(
   "S0_DISCUSS",
   "S0_DRAFT0",
   "S0_MOCK0",
-  "S0_SOTA",
   "S0_APPROVE",
+  "S0_SOTA",
   "S1_DISCUSS",
   "S1_DRAFT1",
   "S1_MOCK1",
   "S1_APPROVE",
   "S2_TEST_DESIGN_REVIEW"
 )
+$mock0Index = $brain.IndexOf("Expected mock v1")
+$approve0Index = $brain.IndexOf("S0_APPROVE checkpoint")
+$sota0Index = $brain.IndexOf("8. **S0_SOTA research**")
+if ($mock0Index -lt 0 -or $approve0Index -lt 0 -or $sota0Index -lt 0 -or
+    -not ($mock0Index -lt $approve0Index -and $approve0Index -lt $sota0Index)) {
+  throw "brainstorming must order S0_MOCK0 -> S0_APPROVE -> S0_SOTA"
+}
 if ($entry.Contains("Authoritative runtime pathAuthoritative runtime path")) {
   throw "using-superpowers duplicates the authoritative runtime label"
 }

@@ -74,22 +74,22 @@ remembering to police official-marketplace drift or stale caches):
 
 ```bash
 # 1. bump every declared manifest (jq-free; all 7 targets)
-bash scripts/bump-version.sh 6.0.3-native.19
+bash scripts/bump-version.sh 6.0.3-native.20
 # 2. coherency + provenance gates
 bash scripts/bump-version.sh --check && bash tests/test-manifest-version-coherency.sh && bash tests/test-fork-provenance.sh
 # 3. commit + push this source repo
-git add -A && git commit -m "release(6.0.3-native.19): ..." && git push
+git add -A && git commit -m "release(6.0.3-native.20): ..." && git push
 ```
 ```powershell
 # 4. pin the LOCAL Claude + Codex install to the reviewed release identity
 #    (<FULL-COMMIT> is the explicitly reviewed full source-commit approval token)
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/pin-local-fork-install.ps1 -ExpectedVersion 6.0.3-native.19 -ExpectedSourceCommit <FULL-COMMIT> -ExpectedPackageDigest <APPROVED-PACKAGE-DIGEST>
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/pin-local-fork-install.ps1 -ExpectedVersion 6.0.3-native.20 -ExpectedSourceCommit <FULL-COMMIT> -ExpectedPackageDigest <APPROVED-PACKAGE-DIGEST>
 # (standalone verify, if needed)
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-local-fork-install.ps1 -ExpectedVersion 6.0.3-native.19 -ExpectedSourceCommit <FULL-COMMIT> -ExpectedPackageDigest <APPROVED-PACKAGE-DIGEST>
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-local-fork-install.ps1 -ExpectedVersion 6.0.3-native.20 -ExpectedSourceCommit <FULL-COMMIT> -ExpectedPackageDigest <APPROVED-PACKAGE-DIGEST>
 ```
 
-For the approved `6.0.3-native.19` package, `<APPROVED-PACKAGE-DIGEST>` is
-`4ec770a98ba2418475a734c6addebb4f67301b3e4833c3a97ffb577c0cfa6231`. It is the SHA-256
+For the approved `6.0.3-native.20` package, `<APPROVED-PACKAGE-DIGEST>` is
+`6bf5e9a3d4bf019b8a136f21b6c378135d11c84ae5d864075652a906e2c6eb39`. It is the SHA-256
 of the sorted `path|git-blob-id` records for both runtime manifests and `skills/**` at the
 approved commit. Every new release changes those records, so never reuse the prior digest.
 

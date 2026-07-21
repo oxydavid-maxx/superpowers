@@ -9,8 +9,8 @@ $ErrorActionPreference = "Stop"
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $pin = Join-Path $repoRoot "scripts\pin-local-fork-install.ps1"
 $verify = Join-Path $repoRoot "scripts\verify-local-fork-install.ps1"
-$approvedDigest = "4ec770a98ba2418475a734c6addebb4f67301b3e4833c3a97ffb577c0cfa6231"
-$expectedVersion = "6.0.3-native.19"
+$approvedDigest = "6bf5e9a3d4bf019b8a136f21b6c378135d11c84ae5d864075652a906e2c6eb39"
+$expectedVersion = "6.0.3-native.20"
 $fails = New-Object System.Collections.Generic.List[string]
 
 function Check-Category([bool]$condition, [string]$name, [string]$detail) {

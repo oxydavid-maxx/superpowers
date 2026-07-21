@@ -33,6 +33,8 @@ TOKEN_BOUND = [stakeholder-needs.json, material-unknowns.json, decision-log.md, 
 
 Exhaustively elicit stakeholder needs, resolve every material unknown, and write the seven S0 artifacts above. `stakeholder-needs.json` rows are `{need_id, stakeholder, need, acceptance_signal}`; `material-unknowns.json` rows are `{id, question, status}` with every status `resolved`; `issue-coverage.json` records every reported issue and its forward trace; `decision-log.md` and `clarification-log.json` are append-only. `spec-draft0.md` and `mock-v0/index.html` are required review outputs. Completeness is decided by these typed fields and validators, never by a required reviewer persona. Finish with the exact command `spg s0-check <run_dir>`.
 
+After `s0-check` passes, stop at `S0_APPROVE` and present the rendered draft and mock for digest-bound human approval. Do not begin `S0_SOTA` until that approval receipt exists.
+
 Before approval, run `git check-ignore -q <run_dir>` in the target project before writing handoff; refuse and diagnose if it exits nonzero. For every produced S0 artifact, run `Get-FileHash -Algorithm SHA256`, then record one sorted `path -> sha256` table in the single handoff. The fixed handoff fields, in order, are `session | created | now | next | remaining work | takeover instructions`. Create exactly one cumulative handoff per run/session at `handoffs/YYYY-MM-DD--<session-name>--handoff.md`; sanitize `<session-name>` to a lowercase hyphen slug, fix `created` at first creation, and find/update that same file on every completed station. `next` contains the next three stations exactly, in order, or all remaining stations if fewer.
 
 After token issuance, none of the bound files may be overwritten. On re-entry, append only to `clarification-log.json` and `decision-log.md`; do not rewrite or replace any token-bound artifact. If either mutable log changes its digest, re-run approval/binding before continuing: the old token is invalid and must not be treated as valid. The handoff lives under the run's `handoffs/` and is ignored with the run.
@@ -43,7 +45,7 @@ Before asking ANY question: read the relevant files/configs/commits first. Never
 
 Before you may "Propose approaches" you MUST pass a context-completeness check: explicitly list the remaining MATERIAL unknowns about intent / constraints / context. If that list is non-empty, keep asking — there is NO fixed question count (three is not a target). The bar is ZERO material unknowns before you propose.
 
-You MUST create a task for each of these items and complete them in order. The flow is a **TWO-PASS LOOP**: draft → SOTA research → refine → final. Single-pass (skip SOTA between draft and final) is forbidden — known failure mode: missing higher-level solutions that prior art already solved.
+You MUST create a task for each of these items and complete them in order. The flow is a **TWO-PASS LOOP**: draft → S0 approval → SOTA research → refine → final. Single-pass (skip approval or SOTA between draft and final) is forbidden — known failure mode: researching an unapproved problem frame or missing higher-level solutions that prior art already solved.
 
 **PASS 1 — discovery & draft:**
 
@@ -58,41 +60,44 @@ You MUST create a task for each of these items and complete them in order. The f
     Every `need_id` in `stakeholder-needs.json` MUST trace forward to a Capability Registry Cap-ID (`need_ids` on the cap) — an elicited need with no Cap-ID is a silently-dropped need and blocks. The deterministic gate is `lib/runtime/payload/sys1_elicitation.py:validate(...)`; it must return `ok:true` before step 5. (This is the upstream analogue of the prose↔registry / coverage gates: an explicit, acknowledged, traceable record — never "I think I understand".)
 5. **Write spec DRAFT** — to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` (clearly labelled "Status: DRAFT"). Include the Required spec sections (Capability Registry, ## Surfaces, placeholder Prior-art section). Each capability carries the `need_ids` it satisfies (Need→Cap traceability).
 6. **Expected mock v1** — after Spec Draft, produce the expected mock artifact so the user can review the rough shape before SOTA might reshape it. UI specs use a non-interactive web page; non-UI specs use a PNG, diagram, CLI transcript mock, API payload mock, or equivalent artifact.
+7. **S0_APPROVE checkpoint** — render the draft and mock, bind their digests, ask the user to approve the S0 problem frame, and wait for the approval receipt. Do not start SOTA research before this gate passes.
 
 **PASS 2 — SOTA falsification & refine (mandatory; do NOT collapse into pass 1):**
 
-7. **SOTA research** — for each significant approach/abstraction in the draft, WebSearch for prior art, named methods, and SOTA techniques. Per finding, write a verdict: adopt / adapt / reject + one-line reason + citation. Surface to the user any finding that genuinely reshapes the design (don't just append a section — bring it back to the conversation).
-8. **Second-pass brainstorming with the user** — fold SOTA findings back into the conversation. Ask exhaustively again until ZERO material unknowns about the revised direction (skipping this step is the known forgetting failure mode — SOTA must inform design, not decorate it).
-9. **Spec FINAL** — update the spec to "Status: FINAL"; populate the Prior-art / SOTA + verdicts section with the research results.
-10. **Expected mock v2** — after Spec Final, regenerate the expected mock artifact if the design materially changed in pass 2. UI specs use a non-interactive web page; non-UI specs use a PNG, diagram, CLI transcript mock, API payload mock, or equivalent artifact.
-11. **Spec self-review** — quick inline check for placeholders, contradictions, ambiguity, scope (see below)
-12. **User reviews written spec** — ask user to review the spec file before proceeding
-13. **Transition to verification design** — invoke `writing-verification-plans` to create `.superpowers/verify/test-design.json`; only after that is approved may `writing-plans` create the implementation plan.
+8. **S0_SOTA research** — for each significant approach/abstraction in the approved draft, WebSearch for prior art, named methods, and SOTA techniques. Per finding, write a verdict: adopt / adapt / reject + one-line reason + citation. Surface to the user any finding that genuinely reshapes the design (don't just append a section — bring it back to the conversation).
+9. **S1_DISCUSS with the user** — fold SOTA findings back into the conversation. Ask exhaustively again until ZERO material unknowns about the revised direction (skipping this step is the known forgetting failure mode — SOTA must inform design, not decorate it).
+10. **Spec FINAL** — update the spec to "Status: FINAL"; populate the Prior-art / SOTA + verdicts section with the research results.
+11. **Expected mock v2** — after Spec Final, regenerate the expected mock artifact if the design materially changed in pass 2. UI specs use a non-interactive web page; non-UI specs use a PNG, diagram, CLI transcript mock, API payload mock, or equivalent artifact.
+12. **Spec self-review** — quick inline check for placeholders, contradictions, ambiguity, scope (see below)
+13. **S1 approval review** — ask the user to review the final rendered spec and mock before proceeding
+14. **Transition to verification design** — invoke `writing-verification-plans` to create `.superpowers/verify/test-design.json`; only after that is approved may `writing-plans` create the implementation plan.
 
 ## Process Flow
 
 ```dot
 digraph brainstorming {
-    "Explore project context" [shape=box];
-    "Ask clarifying questions" [shape=box];
-    "Propose 2-3 approaches" [shape=box];
-    "Present design sections" [shape=box];
-    "User approves design?" [shape=diamond];
-    "Write design doc" [shape=box];
-    "Spec self-review\n(fix inline)" [shape=box];
-    "User reviews spec?" [shape=diamond];
+    "S0_DISCUSS\nresolve intent" [shape=box];
+    "S0_DRAFT0\nwrite draft" [shape=box];
+    "S0_MOCK0\nrender review evidence" [shape=box];
+    "S0_APPROVE?" [shape=diamond];
+    "S0_SOTA\nresearch approved frame" [shape=box];
+    "S1_DISCUSS\nfold findings back" [shape=box];
+    "S1_DRAFT1\nwrite final spec" [shape=box];
+    "S1_MOCK1\nrender final evidence" [shape=box];
+    "S1_APPROVE?" [shape=diamond];
     "Invoke writing-verification-plans skill" [shape=doublecircle];
 
-    "Explore project context" -> "Ask clarifying questions";
-    "Ask clarifying questions" -> "Propose 2-3 approaches";
-    "Propose 2-3 approaches" -> "Present design sections";
-    "Present design sections" -> "User approves design?";
-    "User approves design?" -> "Present design sections" [label="no, revise"];
-    "User approves design?" -> "Write design doc" [label="yes"];
-    "Write design doc" -> "Spec self-review\n(fix inline)";
-    "Spec self-review\n(fix inline)" -> "User reviews spec?";
-    "User reviews spec?" -> "Write design doc" [label="changes requested"];
-    "User reviews spec?" -> "Invoke writing-verification-plans skill" [label="approved"];
+    "S0_DISCUSS\nresolve intent" -> "S0_DRAFT0\nwrite draft";
+    "S0_DRAFT0\nwrite draft" -> "S0_MOCK0\nrender review evidence";
+    "S0_MOCK0\nrender review evidence" -> "S0_APPROVE?";
+    "S0_APPROVE?" -> "S0_DISCUSS\nresolve intent" [label="changes requested"];
+    "S0_APPROVE?" -> "S0_SOTA\nresearch approved frame" [label="approved"];
+    "S0_SOTA\nresearch approved frame" -> "S1_DISCUSS\nfold findings back";
+    "S1_DISCUSS\nfold findings back" -> "S1_DRAFT1\nwrite final spec";
+    "S1_DRAFT1\nwrite final spec" -> "S1_MOCK1\nrender final evidence";
+    "S1_MOCK1\nrender final evidence" -> "S1_APPROVE?";
+    "S1_APPROVE?" -> "S1_DISCUSS\nfold findings back" [label="changes requested"];
+    "S1_APPROVE?" -> "Invoke writing-verification-plans skill" [label="approved"];
 }
 ```
 

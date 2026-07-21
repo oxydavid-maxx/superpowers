@@ -9,7 +9,7 @@ $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $pin = Join-Path $root "scripts\pin-local-fork-install.ps1"
 $verify = Join-Path $root "scripts\verify-local-fork-install.ps1"
 $expected = (Get-Content -Raw -LiteralPath (Join-Path $root ".claude-plugin\plugin.json") | ConvertFrom-Json).version
-$approvedDigest = "4ec770a98ba2418475a734c6addebb4f67301b3e4833c3a97ffb577c0cfa6231"
+$approvedDigest = "6bf5e9a3d4bf019b8a136f21b6c378135d11c84ae5d864075652a906e2c6eb39"
 $legacyVersion = "6.0.3-vmodel.17"
 $legacyPackName = "pack-d42d000000000000000000000000000000000000.rev"
 $fails = New-Object System.Collections.Generic.List[string]
@@ -171,7 +171,7 @@ $receipts = Join-Path $tmp "receipts"
 New-Item -ItemType Directory -Force -Path $receipts | Out-Null
 
 try {
-  Check ($expected -eq "6.0.3-native.19") "source version is '$expected', expected 6.0.3-native.19"
+  Check ($expected -eq "6.0.3-native.20") "source version is '$expected', expected 6.0.3-native.20"
 
   $sharedObject = Join-Path $tmp ("shared-git-objects\" + $legacyPackName)
   New-Item -ItemType Directory -Force -Path (Split-Path -Parent $sharedObject) | Out-Null
@@ -272,7 +272,7 @@ try {
   $writingPlans = Get-Content -Raw -LiteralPath (Join-Path $claudeTarget "skills\writing-plans\SKILL.md") -Encoding utf8
   Check ($brainstorming.Contains("never by a required reviewer persona")) "brainstorming lost native.18 reviewer-neutral semantics"
   Check ($using.Contains("current host session")) "using-superpowers lost native host ownership"
-  Check ($using.IndexOf("| S0_SOTA |") -lt $using.IndexOf("| S0_APPROVE |")) "using-superpowers stage order is not native.18"
+  Check ($using.IndexOf("| S0_APPROVE |") -lt $using.IndexOf("| S0_SOTA |")) "using-superpowers stage order drifted from canonical SPG"
   Check ($writingPlans.Contains("FOCUS =")) "writing-plans missing FOCUS"
   Check ($writingPlans.Contains("RC =")) "writing-plans missing RC"
   Check ($writingPlans -notmatch '(?<![A-Za-z0-9_])T[0-3](?![A-Za-z0-9_])') "writing-plans resurrected retired tiers"
