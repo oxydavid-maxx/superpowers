@@ -11,7 +11,7 @@ $ErrorActionPreference = "Stop"
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $pin    = Join-Path $root "scripts\pin-local-fork-install.ps1"
 $expected = (Get-Content -Raw -LiteralPath (Join-Path $root ".claude-plugin\plugin.json") | ConvertFrom-Json).version
-$approvedDigest = "9ea8129d28c37dcc4f10a96558c23fd63012c8d132dbdf496d7d3c0bf9eb3d07"
+$approvedDigest = "d5e365ecdf50820dad0c38bee2eb176342d4539e09e1041016e91be8eedc4b03"
 $fails = New-Object System.Collections.Generic.List[string]
 function Check($cond, $msg) { if (-not $cond) { $fails.Add($msg) | Out-Null; Write-Host "  FAIL: $msg" } }
 
