@@ -31,7 +31,8 @@ function Assert-PinRejected([string]$name, [string]$claude, [string]$codex, [str
   try {
     & $pin -ClaudeHome $claude -CodexHome $codex -SourceRepo $script:source `
       -ExpectedVersion $expected -ExpectedSourceCommit $script:sourceHead `
-      -ExpectedPackageDigest $approvedDigest -IsolatedTestHome | Out-Null
+      -ExpectedPackageDigest $approvedDigest -IsolatedTestHome `
+      -IsolatedCanonicalBaseCommit $script:sourceHead | Out-Null
     $accepted = $true
   } catch {
     $message = $_.Exception.Message

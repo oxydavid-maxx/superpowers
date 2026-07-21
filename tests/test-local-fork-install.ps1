@@ -41,7 +41,7 @@ try {
   New-Item -ItemType Directory -Force -Path (Join-Path $codex "plugins\cache\claude-plugins-official\superpowers") | Out-Null
 
   # --- run pin (it calls the verifier internally) ---
-  & $pin -ClaudeHome $claude -CodexHome $codex -SourceRepo $source -ExpectedVersion $expected -ExpectedSourceCommit $sourceHead -ExpectedPackageDigest $approvedDigest -IsolatedTestHome | Out-Null
+  & $pin -ClaudeHome $claude -CodexHome $codex -SourceRepo $source -ExpectedVersion $expected -ExpectedSourceCommit $sourceHead -ExpectedPackageDigest $approvedDigest -IsolatedTestHome -IsolatedCanonicalBaseCommit $sourceHead | Out-Null
   Check ($LASTEXITCODE -eq 0) "pin run #1 (with internal verify) exited $LASTEXITCODE"
 
   $d = Get-Content -Raw -LiteralPath $ipj | ConvertFrom-Json
@@ -81,7 +81,7 @@ try {
   Check ((Resolve-Path -LiteralPath $codexCurrent).Path -ne (Resolve-Path -LiteralPath $codexActive).Path) "Codex current and versioned cache must be distinct staged checkouts"
 
   # --- idempotency: re-run must still verify green and not throw ---
-  & $pin -ClaudeHome $claude -CodexHome $codex -SourceRepo $source -ExpectedVersion $expected -ExpectedSourceCommit $sourceHead -ExpectedPackageDigest $approvedDigest -IsolatedTestHome | Out-Null
+  & $pin -ClaudeHome $claude -CodexHome $codex -SourceRepo $source -ExpectedVersion $expected -ExpectedSourceCommit $sourceHead -ExpectedPackageDigest $approvedDigest -IsolatedTestHome -IsolatedCanonicalBaseCommit $sourceHead | Out-Null
   Check ($LASTEXITCODE -eq 0) "pin run #2 (idempotent) exited $LASTEXITCODE"
   & (Join-Path $root "scripts\verify-local-fork-install.ps1") -ClaudeHome $claude -CodexHome $codex -ExpectedVersion $expected -ExpectedSourceCommit $sourceHead -ExpectedPackageDigest $approvedDigest | Out-Null
   Check ($LASTEXITCODE -eq 0) "verifier after idempotent re-run exited $LASTEXITCODE"

@@ -34,7 +34,7 @@ try {
   # --- reject before mutation; never resolve or repair the attacker-controlled link ---
   $message = ""
   try {
-    & $pin -ClaudeHome $claude -CodexHome $codex -SourceRepo $source -ExpectedVersion $expected -ExpectedSourceCommit $sourceHead -ExpectedPackageDigest $approvedDigest -IsolatedTestHome | Out-Null
+    & $pin -ClaudeHome $claude -CodexHome $codex -SourceRepo $source -ExpectedVersion $expected -ExpectedSourceCommit $sourceHead -ExpectedPackageDigest $approvedDigest -IsolatedTestHome -IsolatedCanonicalBaseCommit $sourceHead | Out-Null
     Check $false "dangling reparse point was accepted"
   } catch {
     $message = $_.Exception.Message

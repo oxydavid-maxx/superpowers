@@ -21,6 +21,7 @@ param(
   [string]$ExpectedSourceCommit = "",
   [string]$ExpectedPackageDigest = "",
   [switch]$IsolatedTestHome,
+  [string]$IsolatedCanonicalBaseCommit = "",
   [ValidateSet("None", "AfterClaude", "AfterCodex", "BeforeVerify")]
   [string]$InjectFailureAt = "None",
   [ValidateSet("None", "AfterClaudeBeforeCodex", "AfterPointerRemoval", "AfterVerifiedBeforeFinalize", "DuringFinalize")]
@@ -844,6 +845,10 @@ if ($IsolatedTestHome) {
       $CodexHome.Equals($defaultCodex, [StringComparison]::OrdinalIgnoreCase)) {
     throw "IsolatedTestHome cannot target a production user home"
   }
+  $integrationProof = Get-SPIsolatedCanonicalIntegrationBase $identity.SourceRepo $IsolatedCanonicalBaseCommit
+} else {
+  if ($IsolatedCanonicalBaseCommit) { throw "IsolatedCanonicalBaseCommit requires IsolatedTestHome" }
+  $integrationProof = Get-SPFreshCanonicalIntegrationBase $identity.SourceRepo
 }
 Assert-ScopedExistingState $ClaudeHome $true
 Assert-ScopedExistingState $CodexHome $false
@@ -867,6 +872,10 @@ $result = [ordered]@{
   quarantine_paths = @()
   backup_paths = @()
   residual_scope = @("ACLs", "alternate-data-streams", "hardlink-topology", "timestamps")
+  canonical_remote_url = $integrationProof.RemoteUrl
+  canonical_main_commit = $integrationProof.Commit
+  canonical_main_proved_at = $integrationProof.ProvedAt
+  canonical_main_proof_method = $integrationProof.Method
 }
 
 try {
@@ -875,10 +884,9 @@ try {
   $pending = Read-PendingJournal $journalPaths $ClaudeHome $CodexHome $controlPaths
   if ($null -ne $pending) { Recover-Transaction $pending $journalPaths $controlPaths }
 
-  $canonicalBase = Get-SPCanonicalIntegrationBase $identity.SourceRepo
   $activeLineages = if ($IsolatedTestHome) { @() } else { Get-SPActiveSourceCommits @($ClaudeHome, $CodexHome) }
-  Assert-SPPromotionLineage $identity.SourceRepo $identity.Commit $canonicalBase $activeLineages
-  $result["canonical_integration_base"] = $canonicalBase
+  Assert-SPPromotionLineage $identity.SourceRepo $identity.Commit $integrationProof.Commit $activeLineages
+  $result["canonical_integration_base"] = $integrationProof.Commit
   $result["prior_active_source_lineages"] = @($activeLineages)
   $result["lineage_mode"] = if ($IsolatedTestHome) { "isolated-test" } else { "production" }
 

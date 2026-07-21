@@ -153,7 +153,7 @@ function Get-CommitPackageDigest([string]$repo, [string]$commit, [string[]]$rela
 }
 
 function Invoke-PinJson([string]$claudeHome, [string]$codexHome) {
-  $output = @(& $pin -ClaudeHome $claudeHome -CodexHome $codexHome -SourceRepo $script:sourceRepo -ExpectedVersion $expected -ExpectedSourceCommit $script:sourceHead -ExpectedPackageDigest $approvedDigest -IsolatedTestHome)
+  $output = @(& $pin -ClaudeHome $claudeHome -CodexHome $codexHome -SourceRepo $script:sourceRepo -ExpectedVersion $expected -ExpectedSourceCommit $script:sourceHead -ExpectedPackageDigest $approvedDigest -IsolatedTestHome -IsolatedCanonicalBaseCommit $script:sourceHead)
   return (($output -join [Environment]::NewLine) | ConvertFrom-Json)
 }
 
@@ -189,7 +189,7 @@ try {
 
   $failureMessage = ""
   try {
-    & $pin -ClaudeHome $claude -CodexHome $codex -SourceRepo $script:sourceRepo -ExpectedVersion $expected -ExpectedSourceCommit $script:sourceHead -ExpectedPackageDigest $approvedDigest -IsolatedTestHome -InjectFailureAt AfterCodex | Out-Null
+    & $pin -ClaudeHome $claude -CodexHome $codex -SourceRepo $script:sourceRepo -ExpectedVersion $expected -ExpectedSourceCommit $script:sourceHead -ExpectedPackageDigest $approvedDigest -IsolatedTestHome -IsolatedCanonicalBaseCommit $script:sourceHead -InjectFailureAt AfterCodex | Out-Null
     Check $false "injected failure did not fail"
   } catch {
     $failureMessage = $_.Exception.Message
@@ -226,7 +226,7 @@ try {
   $mismatchBeforeCodex = Get-StateFingerprint $mismatchCodex
   $mismatchMessage = ""
   try {
-    & $pin -ClaudeHome $mismatchClaude -CodexHome $mismatchCodex -SourceRepo $script:sourceRepo -ExpectedVersion $legacyVersion -ExpectedSourceCommit $script:sourceHead -ExpectedPackageDigest $approvedDigest -IsolatedTestHome | Out-Null
+    & $pin -ClaudeHome $mismatchClaude -CodexHome $mismatchCodex -SourceRepo $script:sourceRepo -ExpectedVersion $legacyVersion -ExpectedSourceCommit $script:sourceHead -ExpectedPackageDigest $approvedDigest -IsolatedTestHome -IsolatedCanonicalBaseCommit $script:sourceHead | Out-Null
     Check $false "version masquerade was accepted"
   } catch {
     $mismatchMessage = $_.Exception.Message

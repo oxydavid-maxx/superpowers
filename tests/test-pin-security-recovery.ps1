@@ -121,6 +121,7 @@ function Invoke-PinAttempt(
     ExpectedSourceCommit = $sourceCommit
     ExpectedPackageDigest = $packageDigest
     IsolatedTestHome = $true
+    IsolatedCanonicalBaseCommit = $sourceCommit
   }
   foreach ($key in $extra.Keys) { $arguments[$key] = $extra[$key] }
   try {
@@ -188,6 +189,7 @@ function Get-PinChildArguments(
     "-ExpectedSourceCommit", $sourceCommit,
     "-ExpectedPackageDigest", $approvedDigest,
     "-IsolatedTestHome",
+    "-IsolatedCanonicalBaseCommit", $sourceCommit,
     "-HardKillAt", $hardKillAt,
     "-HoldLockMilliseconds", [string]$holdLockMilliseconds
   )
@@ -216,7 +218,7 @@ New-Item -ItemType Directory -Force -Path $receipts | Out-Null
 try {
   $pinParameters = @((Get-Command $pin).Parameters.Keys)
   $verifyParameters = @((Get-Command $verify).Parameters.Keys)
-  $requiredPinApi = @("ExpectedSourceCommit", "ExpectedPackageDigest", "IsolatedTestHome", "HardKillAt", "HoldLockMilliseconds")
+  $requiredPinApi = @("ExpectedSourceCommit", "ExpectedPackageDigest", "IsolatedTestHome", "IsolatedCanonicalBaseCommit", "HardKillAt", "HoldLockMilliseconds")
   $requiredVerifyApi = @("ExpectedSourceCommit", "ExpectedPackageDigest")
   $missingPinApi = @($requiredPinApi | Where-Object { $pinParameters -notcontains $_ })
   $missingVerifyApi = @($requiredVerifyApi | Where-Object { $verifyParameters -notcontains $_ })

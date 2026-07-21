@@ -206,6 +206,38 @@ function Get-SPCanonicalIntegrationBase([string]$repo) {
   return $commit
 }
 
+function Get-SPFreshCanonicalIntegrationBase([string]$repo) {
+  $remote = Invoke-SPGit $repo @("remote", "get-url", "origin")
+  $provedAt = [DateTime]::UtcNow.ToString("o")
+  $fetch = Invoke-SPGit $repo @(
+    "fetch", "--no-tags", "origin", "+refs/heads/main:refs/remotes/origin/main"
+  ) -AllowFailure
+  if ($fetch.ExitCode -ne 0) {
+    throw "fresh canonical integration base proof failed: $($fetch.Output -join ' ')"
+  }
+  return [pscustomobject]@{
+    RemoteUrl = ([string]$remote.Output[0]).Trim()
+    Commit = Get-SPCanonicalIntegrationBase $repo
+    ProvedAt = $provedAt
+    Method = "git-fetch-origin-main"
+  }
+}
+
+function Get-SPIsolatedCanonicalIntegrationBase([string]$repo, [string]$commit) {
+  if ($commit -notmatch "^[0-9a-fA-F]{40,64}$") {
+    throw "IsolatedCanonicalBaseCommit is required and must be a full commit"
+  }
+  $exists = Invoke-SPGit $repo @("cat-file", "-e", ($commit + "^{commit}")) -AllowFailure
+  if ($exists.ExitCode -ne 0) { throw "isolated canonical integration base is unavailable: $commit" }
+  $remote = Invoke-SPGit $repo @("remote", "get-url", "origin")
+  return [pscustomobject]@{
+    RemoteUrl = ([string]$remote.Output[0]).Trim()
+    Commit = $commit.ToLowerInvariant()
+    ProvedAt = [DateTime]::UtcNow.ToString("o")
+    Method = "explicit-isolated-base"
+  }
+}
+
 function Get-SPActiveSourceCommits([string[]]$homes) {
   $commits = New-Object System.Collections.Generic.List[string]
   foreach ($home in $homes) {

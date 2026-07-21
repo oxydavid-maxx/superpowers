@@ -102,11 +102,14 @@ or `named-high-risk:<reason>` — normal publish or merge alone is not a full-su
 hooks and other executable surfaces. The routine pushes first, but the script proves exact
 commit/tree equality and approved-origin identity; it does not infer remote reachability.
 
-Promotion is fail-closed on Git lineage before transaction assets are created. The candidate must
-descend from `refs/remotes/origin/main` and from every source commit recorded by an existing Claude
-or Codex `current` projection. A stale ancestor or sibling therefore cannot replace active behavior.
-Temp-home regression tests must opt into `-IsolatedTestHome`; that switch refuses the production
-user homes and never weakens the default production path.
+Promotion is fail-closed on Git lineage before transaction assets are created. Production performs
+one `git fetch origin main`, binds the exact fresh remote-main commit, URL, proof method, and UTC
+proof time into the result receipt, then requires the candidate to descend from that commit and from
+every source commit recorded by an existing Claude or Codex `current` projection. A stale tracking
+ref, ancestor, or sibling therefore cannot replace active behavior. If the fresh remote proof fails,
+promotion fails closed. Temp-home regression tests must opt into `-IsolatedTestHome` and provide an
+explicit full `-IsolatedCanonicalBaseCommit`; the switch refuses production user homes and never
+weakens the default production path.
 
 `pin-local-fork-install.ps1` (idempotent, temp-home-friendly) accepts only an approved-origin,
 tracked-clean source whose HEAD equals that approval token and package digest. For BOTH the Claude
